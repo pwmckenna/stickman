@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stickman Fighter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a2e;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #gameContainer {
+            text-align: center;
+        }
+        canvas {
+            border: 3px solid #4a4a6a;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        #controls {
+            color: #888;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        .player-controls {
+            display: inline-block;
+            margin: 0 30px;
+        }
+        .player-controls h3 {
+            color: #fff;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="1400" height="500"></canvas>
+        <div id="controls">
+            <div class="player-controls">
+                <h3 style="color: #4a9eff;">Player 1</h3>
+                <div>Move: A/D | Jump: W | Crouch: S | Roll: S+A/D | Attack: F | Smash: G</div>
+            </div>
+            <div class="player-controls">
+                <h3 style="color: #ff4a4a;">Player 2</h3>
+                <div>Move: ←/→ | Jump: ↑ | Crouch: ↓ | Roll: ↓+←/→ | Attack: L | Smash: K</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game constants
+        const GRAVITY = 0.6;
+        const MOVE_SPEED = 5;
+        const PLATFORM_HEIGHT = 80; // Vertical spacing between levels
+
+        // Platforms array: {x, y, width}
+        // 5 levels from bottom (y=420) to top (y=100), spaced 80px apart
+        // Bigger platforms at bottom, smaller at top
+        const platforms = [
+            // Level 1 (bottom) - y=420 - LARGEST platforms
+            { x: 50, y: 420, width: 300 },
+            { x: 400, y: 420, width: 350 },
+            { x: 800, y: 420, width: 300 },
+            { x: 1150, y: 420, width: 200 },
+
+            // Level 2 - y=340 - Large platforms
+            { x: 100, y: 340, width: 220 },
+            { x: 380, y: 340, width: 250 },
+            { x: 700, y: 340, width: 220 },
+            { x: 1000, y: 340, width: 200 },
+
+            // Level 3 - y=260 - Medium platforms
+            { x: 50, y: 260, width: 180 },
+            { x: 300, y: 260, width: 180 },
+            { x: 550, y: 260, width: 180 },
+            { x: 800, y: 260, width: 180 },
+            { x: 1050, y: 260, width: 180 },
+
+            // Level 4 - y=180 - Small platforms
+            { x: 150, y: 180, width: 140 },
+            { x: 400, y: 180, width: 140 },
+            { x: 650, y: 180, width: 140 },
+            { x: 900, y: 180, width: 140 },
+            { x: 1150, y: 180, width: 140 },
+
+            // Level 5 (top) - y=100 - SMALLEST platforms
+            { x: 250, y: 100, width: 100 },
+            { x: 500, y: 100, width: 100 },
+            { x: 750, y: 100, width: 100 },
+            { x: 1000, y: 100, width: 100 },
+        ];
+
+        // Jump force calculated to reach just over one platform height (~85px)
+        // Max height = v^2 / (2*g), so v = sqrt(2*g*h) = sqrt(2*0.6*85) ≈ 10.1
+        const JUMP_FORCE = -10.5;
+        const ATTACK_DAMAGE = 10;
+        const SMASH_DAMAGE = 5;  // Low damage, high knockback
+        const ATTACK_KNOCKBACK = 8;
+        const SMASH_KNOCKBACK = 25; // Big knockback for ring outs
+        const ROLL_SPEED = 5;  // Same as normal move speed
+        const ROLL_DURATION = 20;
+        const POWERUP_DURATION = 300; // 5 seconds at 60fps
+
+        // Weapon types for powerups
+        const WEAPONS = {
+            sword: { name: 'Sword', color: '#cccccc', damage: 10, knockback: 8, range: 45, ranged: false },
+            hammer: { name: 'Hammer', color: '#8B4513', damage: 8, knockback: 20, range: 35, ranged: false },
+            spear: { name: 'Spear', color: '#FFD700', damage: 15, knockback: 5, range: 65, ranged: false },
+            axe: { name: 'Axe', color: '#CD5C5C', damage: 20, knockback: 12, range: 40, ranged: false },
+            bow: { name: 'Bow', color: '#90EE90', damage: 12, knockback: 6, range: 30, ranged: true },
+        };
+
+        // Projectiles array
+        let projectiles = [];
+
+        // Game state
+        let gameState = 'playing'; // 'playing', 'gameover'
+        let winner = null;
+        let screenShake = 0;
+        let powerups = [];
+        let powerupSpawnTimer = 0;
+
+        // Input handling
+        const keys = {};
+        document.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            keys[e.key] = true;
+            if (['w', 'a', 's', 'd', 'f', 'g', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'l', 'k'].includes(e.key) ||
+                ['w', 'a', 's', 'd', 'f', 'g', 'l', 'k'].includes(e.key.toLowerCase())) {
+                e.preventDefault();
+            }
+        });
+        document.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+            keys[e.key] = false;
+        });
+
+        // PowerUp class - bouncing weapon pickups
+        class PowerUp {
+            constructor() {
+                this.x = Math.random() * (canvas.width - 40) + 20;
+                this.y = 50;
+                this.vx = (Math.random() - 0.5) * 6;
+                this.vy = (Math.random() + 0.5) * 3;
+                this.size = 20;
+                // Pick random weapon (not sword, that's default)
+                const weaponTypes = ['hammer', 'spear', 'axe', 'bow'];
+                this.weaponType = weaponTypes[Math.floor(Math.random() * weaponTypes.length)];
+                this.weapon = WEAPONS[this.weaponType];
+                this.bobOffset = Math.random() * Math.PI * 2;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Bounce off walls
+                if (this.x <= this.size || this.x >= canvas.width - this.size) {
+                    this.vx *= -1;
+                    this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x));
+                }
+
+                // Bounce off top
+                if (this.y <= this.size) {
+                    this.vy *= -1;
+                    this.y = this.size;
+                }
+
+                // Bounce off bottom (don't fall off screen)
+                if (this.y >= canvas.height - this.size) {
+                    this.vy *= -0.8;
+                    this.y = canvas.height - this.size;
+                    if (Math.abs(this.vy) < 1) this.vy = -3; // Keep bouncing
+                }
+
+                // Slow down slightly
+                this.vx *= 0.999;
+            }
+
+            draw() {
+                const bob = Math.sin(Date.now() / 200 + this.bobOffset) * 3;
+
+                ctx.save();
+                ctx.translate(this.x, this.y + bob);
+
+                // Glowing circle background
+                ctx.beginPath();
+                ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.fill();
+                ctx.strokeStyle = this.weapon.color;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // Draw weapon icon
+                ctx.strokeStyle = this.weapon.color;
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+
+                if (this.weaponType === 'hammer') {
+                    // Hammer icon
+                    ctx.beginPath();
+                    ctx.moveTo(0, 8);
+                    ctx.lineTo(0, -4);
+                    ctx.stroke();
+                    ctx.fillStyle = this.weapon.color;
+                    ctx.fillRect(-8, -10, 16, 8);
+                } else if (this.weaponType === 'spear') {
+                    // Spear icon
+                    ctx.beginPath();
+                    ctx.moveTo(0, 10);
+                    ctx.lineTo(0, -8);
+                    ctx.lineTo(-4, -4);
+                    ctx.moveTo(0, -8);
+                    ctx.lineTo(4, -4);
+                    ctx.stroke();
+                } else if (this.weaponType === 'axe') {
+                    // Axe icon
+                    ctx.beginPath();
+                    ctx.moveTo(0, 10);
+                    ctx.lineTo(0, -5);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc(5, -5, 8, Math.PI * 0.5, Math.PI * 1.5);
+                    ctx.fillStyle = this.weapon.color;
+                    ctx.fill();
+                } else if (this.weaponType === 'bow') {
+                    // Bow icon
+                    ctx.beginPath();
+                    ctx.arc(-3, 0, 10, -Math.PI * 0.4, Math.PI * 0.4);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(-3, -6);
+                    ctx.lineTo(-3, 6);
+                    ctx.stroke();
+                    // Arrow
+                    ctx.beginPath();
+                    ctx.moveTo(-3, 0);
+                    ctx.lineTo(10, 0);
+                    ctx.lineTo(7, -3);
+                    ctx.moveTo(10, 0);
+                    ctx.lineTo(7, 3);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+
+            checkCollision(player) {
+                const dx = this.x - (player.x + player.width / 2);
+                const dy = this.y - (player.y - player.height / 2);
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                return dist < this.size + 25;
+            }
+        }
+
+        // Projectile class for ranged weapons
+        class Projectile {
+            constructor(x, y, direction, owner, weapon) {
+                this.x = x;
+                this.y = y;
+                this.vx = direction * 15;
+                this.vy = 0;
+                this.owner = owner;
+                this.weapon = weapon;
+                this.life = 120; // 2 seconds
+            }
+
+            update() {
+                this.x += this.vx;
+                this.vy += 0.1; // Slight gravity
+                this.y += this.vy;
+                this.life--;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(Math.atan2(this.vy, this.vx));
+
+                // Arrow
+                ctx.strokeStyle = this.weapon.color;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(-15, 0);
+                ctx.lineTo(10, 0);
+                ctx.lineTo(6, -4);
+                ctx.moveTo(10, 0);
+                ctx.lineTo(6, 4);
+                ctx.stroke();
+
+                // Fletching
+                ctx.beginPath();
+                ctx.moveTo(-15, 0);
+                ctx.lineTo(-12, -4);
+                ctx.moveTo(-15, 0);
+                ctx.lineTo(-12, 4);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            checkHit(player) {
+                if (player === this.owner) return false;
+                return this.x > player.x - 10 &&
+                       this.x < player.x + player.width + 10 &&
+                       this.y > player.y - player.height - 10 &&
+                       this.y < player.y + 10;
+            }
+        }
+
+        class Player {
+            constructor(x, y, color, controls, facingRight) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.width = 30;
+                this.height = 60;
+                this.color = color;
+                this.controls = controls;
+                this.facingRight = facingRight;
+                this.health = 100;
+                this.maxHealth = 100;
+                this.isGrounded = false;
+                this.isAttacking = false;
+                this.isSmashing = false;
+                this.attackTimer = 0;
+                this.smashTimer = 0;
+                this.attackCooldown = 0;
+                this.smashCooldown = 0;
+                this.invincible = 0;
+                this.hitFlash = 0;
+                this.swordAngle = 0;
+                this.targetSwordAngle = 0;
+                this.isRolling = false;
+                this.rollTimer = 0;
+                this.rollCooldown = 0;
+                this.rollDirection = 1;
+                this.isCrouching = false;
+                this.weapon = WEAPONS.sword;
+                this.weaponTimer = 0;
+            }
+
+            update(other) {
+                // Rolling state
+                if (this.isRolling) {
+                    this.vx = this.rollDirection * ROLL_SPEED;
+                    this.rollTimer--;
+                    if (this.rollTimer <= 0) {
+                        this.isRolling = false;
+                    }
+                    // Invincible during roll
+                    this.invincible = 5;
+                } else {
+                    // Handle input (only when not rolling)
+                    if (keys[this.controls.left]) {
+                        this.vx = -MOVE_SPEED;
+                        this.facingRight = false;
+                    } else if (keys[this.controls.right]) {
+                        this.vx = MOVE_SPEED;
+                        this.facingRight = true;
+                    } else {
+                        this.vx *= 0.8;
+                    }
+
+                    // Roll - press down + direction
+                    if (keys[this.controls.down] && this.rollCooldown <= 0 && this.isGrounded) {
+                        if (keys[this.controls.left]) {
+                            this.isRolling = true;
+                            this.rollTimer = ROLL_DURATION;
+                            this.rollCooldown = 40;
+                            this.rollDirection = -1;
+                            this.facingRight = false;
+                            this.isCrouching = false;
+                        } else if (keys[this.controls.right]) {
+                            this.isRolling = true;
+                            this.rollTimer = ROLL_DURATION;
+                            this.rollCooldown = 40;
+                            this.rollDirection = 1;
+                            this.facingRight = true;
+                            this.isCrouching = false;
+                        } else {
+                            // Just crouch (down without direction)
+                            this.isCrouching = true;
+                        }
+                    } else {
+                        this.isCrouching = false;
+                    }
+
+                    // Jump
+                    if (keys[this.controls.jump] && this.isGrounded) {
+                        this.vy = JUMP_FORCE;
+                        this.isGrounded = false;
+                    }
+                }
+
+                // Attack (not while rolling)
+                if (keys[this.controls.attack] && this.attackCooldown <= 0 && !this.isAttacking && !this.isSmashing && !this.isRolling) {
+                    this.isAttacking = true;
+                    this.attackTimer = 15;
+                    this.attackCooldown = 25;
+
+                    // Ranged weapon shoots projectile
+                    if (this.weapon.ranged) {
+                        const dir = this.facingRight ? 1 : -1;
+                        const crouchOffset = this.isCrouching ? 20 : 0;
+                        projectiles.push(new Projectile(
+                            this.x + this.width / 2 + dir * 20,
+                            this.y - 30 + crouchOffset,
+                            dir,
+                            this,
+                            this.weapon
+                        ));
+                    }
+                }
+
+                // Smash (not while rolling)
+                if (keys[this.controls.smash] && this.smashCooldown <= 0 && !this.isAttacking && !this.isSmashing && !this.isRolling) {
+                    this.isSmashing = true;
+                    this.smashTimer = 30;
+                    this.smashCooldown = 50;
+                }
+
+                // Apply gravity
+                this.vy += GRAVITY;
+                this.y += this.vy;
+                this.x += this.vx;
+
+                // Platform collision
+                this.isGrounded = false;
+
+                // Check all platforms
+                for (const plat of platforms) {
+                    if (this.x + this.width > plat.x && this.x < plat.x + plat.width) {
+                        // Only land if falling down onto platform
+                        if (this.vy >= 0 && this.y >= plat.y - 15 && this.y <= plat.y + 5) {
+                            this.y = plat.y;
+                            this.vy = 0;
+                            this.isGrounded = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Player-to-player collision
+                const overlapX = (this.x + this.width) - other.x;
+                const overlapX2 = (other.x + other.width) - this.x;
+                if (overlapX > 0 && overlapX2 > 0 &&
+                    this.y > other.y - other.height && this.y - this.height < other.y) {
+                    // Check if running into a crouching player - hop over them!
+                    if (other.isCrouching && Math.abs(this.vx) > 3 && this.isGrounded) {
+                        this.vy = -6; // Small hop (not enough to reach next level)
+                        this.vx *= 2; // Boost momentum to clear over them
+                        this.isGrounded = false;
+                    } else if (!this.isCrouching) {
+                        // Normal push apart (don't push crouching player)
+                        if (overlapX < overlapX2) {
+                            this.x -= overlapX / 2 + 1;
+                        } else {
+                            this.x += overlapX2 / 2 + 1;
+                        }
+                    }
+                }
+
+                // Screen bounds (can fall off sides too)
+                if (this.x < -50) this.x = -50;
+                if (this.x > canvas.width + 20) this.x = canvas.width + 20;
+
+                // Ring out (fall off bottom)
+                if (this.y > canvas.height + 50) {
+                    this.health = 0;
+                }
+
+                // Update timers
+                if (this.attackTimer > 0) this.attackTimer--;
+                if (this.smashTimer > 0) this.smashTimer--;
+                if (this.attackCooldown > 0) this.attackCooldown--;
+                if (this.smashCooldown > 0) this.smashCooldown--;
+                if (this.rollCooldown > 0) this.rollCooldown--;
+                if (this.invincible > 0) this.invincible--;
+                if (this.hitFlash > 0) this.hitFlash--;
+
+                if (this.attackTimer <= 0) this.isAttacking = false;
+                if (this.smashTimer <= 0) this.isSmashing = false;
+
+                // Weapon timer - revert to sword when expired
+                if (this.weaponTimer > 0) {
+                    this.weaponTimer--;
+                    if (this.weaponTimer <= 0) {
+                        this.weapon = WEAPONS.sword;
+                    }
+                }
+
+                // Sword animation - angles based on facing direction
+                if (this.isAttacking) {
+                    // Quick swing: sword goes from up to forward
+                    this.targetSwordAngle = this.facingRight ? 0 : Math.PI;
+                } else if (this.isSmashing) {
+                    // Heavy overhead swing
+                    const progress = 1 - (this.smashTimer / 30);
+                    if (this.facingRight) {
+                        this.targetSwordAngle = -Math.PI * 0.8 + progress * Math.PI * 1.3;
+                    } else {
+                        this.targetSwordAngle = Math.PI * 0.8 - progress * Math.PI * 1.3;
+                    }
+                } else {
+                    // Idle: sword held up and ready
+                    this.targetSwordAngle = this.facingRight ? -Math.PI / 4 : Math.PI + Math.PI / 4;
+                }
+                this.swordAngle += (this.targetSwordAngle - this.swordAngle) * 0.3;
+
+                // Hit detection
+                if ((this.isAttacking && this.attackTimer > 5) || (this.isSmashing && this.smashTimer > 10 && this.smashTimer < 25)) {
+                    const swordTip = this.getSwordTip();
+                    if (this.checkHit(other, swordTip)) {
+                        if (other.invincible <= 0) {
+                            // Use weapon stats for damage, smash multiplies knockback
+                            const damage = this.isSmashing ? SMASH_DAMAGE : this.weapon.damage;
+                            const knockback = this.isSmashing ? SMASH_KNOCKBACK : this.weapon.knockback;
+                            other.health -= damage;
+                            other.invincible = 30;
+                            other.hitFlash = 10;
+                            other.vx = this.facingRight ? knockback : -knockback;
+                            other.vy = -knockback / 2;
+                            screenShake = this.isSmashing ? 15 : 8;
+                        }
+                    }
+                }
+            }
+
+            getSwordTip() {
+                const centerX = this.x + this.width / 2;
+                const feetY = this.y;
+                const dir = this.facingRight ? 1 : -1;
+                const crouchOffset = this.isCrouching ? 20 : 0;
+                const headX = centerX + dir * 3;
+                const headY = feetY - 50 + crouchOffset;
+                const handX = headX + dir * 18;
+                const handY = headY + 8 + crouchOffset;
+                const weaponLength = this.weapon.range;
+                return {
+                    x: handX + Math.cos(this.swordAngle) * weaponLength,
+                    y: handY + Math.sin(this.swordAngle) * weaponLength
+                };
+            }
+
+            checkHit(other, swordTip) {
+                return swordTip.x > other.x - 10 &&
+                       swordTip.x < other.x + other.width + 10 &&
+                       swordTip.y > other.y - other.height - 10 &&
+                       swordTip.y < other.y + 10;
+            }
+
+            draw() {
+                ctx.save();
+
+                const centerX = this.x + this.width / 2;
+                const feetY = this.y;
+                const dir = this.facingRight ? 1 : -1;
+
+                // Victory dab pose! (head with limbs attached)
+                if (gameState === 'gameover' && this.health > 0) {
+                    const dabHeadX = centerX;
+                    const dabHeadY = feetY - 35;
+                    const dabHeadRadius = 14;
+
+                    // Big head
+                    ctx.beginPath();
+                    ctx.arc(dabHeadX, dabHeadY, dabHeadRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = '#FFE4C4';
+                    ctx.fill();
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    // Smug closed eyes (happy dab)
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(dabHeadX - 4, dabHeadY - 2, 3, Math.PI * 0.2, Math.PI * 0.8);
+                    ctx.moveTo(dabHeadX + 7, dabHeadY - 2);
+                    ctx.arc(dabHeadX + 4, dabHeadY - 2, 3, Math.PI * 0.2, Math.PI * 0.8);
+                    ctx.stroke();
+
+                    // Big smile
+                    ctx.strokeStyle = '#8B0000';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(dabHeadX, dabHeadY + 5, 5, 0.3, Math.PI - 0.3);
+                    ctx.stroke();
+
+                    // Short stubby legs attached to head
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 6;
+                    ctx.lineCap = 'round';
+                    const dabFootY = dabHeadY + dabHeadRadius + 12;
+                    ctx.beginPath();
+                    ctx.moveTo(dabHeadX - 5, dabHeadY + dabHeadRadius);
+                    ctx.lineTo(dabHeadX - 8, dabFootY);
+                    ctx.moveTo(dabHeadX + 5, dabHeadY + dabHeadRadius);
+                    ctx.lineTo(dabHeadX + 8, dabFootY);
+                    ctx.stroke();
+
+                    // Feet
+                    ctx.fillStyle = this.color;
+                    ctx.beginPath();
+                    ctx.arc(dabHeadX - 8, dabFootY, 5, 0, Math.PI * 2);
+                    ctx.arc(dabHeadX + 8, dabFootY, 5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Dab arm (across face) - attached to head
+                    ctx.lineWidth = 5;
+                    ctx.beginPath();
+                    ctx.moveTo(dabHeadX + dabHeadRadius, dabHeadY);
+                    ctx.lineTo(dabHeadX + 25, dabHeadY - 15);
+                    ctx.stroke();
+                    ctx.fillStyle = '#FFE4C4';
+                    ctx.beginPath();
+                    ctx.arc(dabHeadX + 25, dabHeadY - 15, 5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Extended arm (pointing out) - attached to head
+                    ctx.strokeStyle = this.color;
+                    ctx.beginPath();
+                    ctx.moveTo(dabHeadX - dabHeadRadius, dabHeadY);
+                    ctx.lineTo(dabHeadX - 30, dabHeadY - 20);
+                    ctx.stroke();
+                    ctx.fillStyle = '#FFE4C4';
+                    ctx.beginPath();
+                    ctx.arc(dabHeadX - 30, dabHeadY - 20, 5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.restore();
+                    return;
+                }
+
+                // Flash when hit
+                if (this.hitFlash > 0 && this.hitFlash % 2 === 0) {
+                    ctx.globalAlpha = 0.5;
+                }
+
+                // Invincibility flicker
+                if (this.invincible > 0 && this.invincible % 4 < 2) {
+                    ctx.globalAlpha = 0.7;
+                }
+
+                // Roll animation - plump ball rolling
+                if (this.isRolling) {
+                    const rollProgress = (ROLL_DURATION - this.rollTimer) / ROLL_DURATION;
+                    const rotation = rollProgress * Math.PI * 4 * this.rollDirection;
+
+                    ctx.translate(centerX, feetY - 18);
+                    ctx.rotate(rotation);
+
+                    // Plump curled body
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 18, 0, Math.PI * 2);
+                    ctx.fillStyle = '#FFE4C4';
+                    ctx.fill();
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+
+                    // Head tucked in
+                    ctx.beginPath();
+                    ctx.arc(10, -6, 8, 0, Math.PI * 2);
+                    ctx.fillStyle = '#FFE4C4';
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Dizzy eyes
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(8, -8, 2, 0, Math.PI * 2);
+                    ctx.arc(13, -6, 2, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    ctx.restore();
+                    return;
+                }
+
+                // Draw stickman
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+
+                // Crouch makes character shorter
+                const crouchOffset = this.isCrouching ? 20 : 0;
+
+                // Head - offset in facing direction
+                const headX = centerX + dir * 3;
+                const headY = feetY - 50 + crouchOffset;
+                const headRadius = 12;
+
+                // Head outline and fill
+                ctx.beginPath();
+                ctx.arc(headX, headY, headRadius, 0, Math.PI * 2);
+                ctx.fillStyle = '#FFE4C4'; // Skin tone
+                ctx.fill();
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Determine facial expression based on state
+                const isHurt = this.hitFlash > 0;
+                const isAggressive = this.isAttacking || this.isSmashing;
+                const isExcited = !this.isGrounded || this.isSmashing || this.weaponTimer > POWERUP_DURATION - 30;
+
+                // Eyes - bulge when excited!
+                const eyeOffsetX = dir * 3;
+                const eyeY = headY - 2;
+                const leftEyeX = headX - 4 + eyeOffsetX;
+                const rightEyeX = headX + 4 + eyeOffsetX;
+                const eyeScaleX = isExcited ? 4 : 3;
+                const eyeScaleY = isExcited ? 5.5 : 4;
+
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.ellipse(leftEyeX, eyeY, eyeScaleX, eyeScaleY, 0, 0, Math.PI * 2);
+                ctx.ellipse(rightEyeX, eyeY, eyeScaleX, eyeScaleY, 0, 0, Math.PI * 2);
+                ctx.fill();
+                // Eye outline when bulging
+                if (isExcited) {
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+
+                // Pupils - look in facing direction, smaller when excited (more white showing)
+                const pupilOffsetX = dir * 1.5;
+                const pupilSize = isExcited ? 1 : 1.5;
+                ctx.fillStyle = '#000';
+                if (isHurt) {
+                    // X eyes when hurt
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(leftEyeX - 2, eyeY - 2);
+                    ctx.lineTo(leftEyeX + 2, eyeY + 2);
+                    ctx.moveTo(leftEyeX + 2, eyeY - 2);
+                    ctx.lineTo(leftEyeX - 2, eyeY + 2);
+                    ctx.moveTo(rightEyeX - 2, eyeY - 2);
+                    ctx.lineTo(rightEyeX + 2, eyeY + 2);
+                    ctx.moveTo(rightEyeX + 2, eyeY - 2);
+                    ctx.lineTo(rightEyeX - 2, eyeY + 2);
+                    ctx.stroke();
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(leftEyeX + pupilOffsetX, eyeY, pupilSize, 0, Math.PI * 2);
+                    ctx.arc(rightEyeX + pupilOffsetX, eyeY, pupilSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Eyebrows
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                if (isAggressive) {
+                    // Angry eyebrows (angled down toward center)
+                    ctx.moveTo(leftEyeX - 3, eyeY - 5);
+                    ctx.lineTo(leftEyeX + 2, eyeY - 7);
+                    ctx.moveTo(rightEyeX + 3, eyeY - 5);
+                    ctx.lineTo(rightEyeX - 2, eyeY - 7);
+                } else if (isHurt) {
+                    // Worried eyebrows (angled up toward center)
+                    ctx.moveTo(leftEyeX - 3, eyeY - 7);
+                    ctx.lineTo(leftEyeX + 2, eyeY - 5);
+                    ctx.moveTo(rightEyeX + 3, eyeY - 7);
+                    ctx.lineTo(rightEyeX - 2, eyeY - 5);
+                } else {
+                    // Normal eyebrows
+                    ctx.moveTo(leftEyeX - 3, eyeY - 6);
+                    ctx.lineTo(leftEyeX + 3, eyeY - 6);
+                    ctx.moveTo(rightEyeX - 3, eyeY - 6);
+                    ctx.lineTo(rightEyeX + 3, eyeY - 6);
+                }
+                ctx.stroke();
+
+                // Nose
+                ctx.strokeStyle = '#DEB887';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(headX + dir * 2, headY);
+                ctx.lineTo(headX + dir * 4, headY + 3);
+                ctx.lineTo(headX + dir * 2, headY + 3);
+                ctx.stroke();
+
+                // Mouth
+                ctx.strokeStyle = '#8B0000';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                if (isAggressive) {
+                    // Gritting teeth / battle cry
+                    ctx.moveTo(headX - 4, headY + 6);
+                    ctx.lineTo(headX + 4, headY + 6);
+                    ctx.moveTo(headX - 3, headY + 6);
+                    ctx.lineTo(headX - 3, headY + 8);
+                    ctx.moveTo(headX, headY + 6);
+                    ctx.lineTo(headX, headY + 8);
+                    ctx.moveTo(headX + 3, headY + 6);
+                    ctx.lineTo(headX + 3, headY + 8);
+                } else if (isHurt) {
+                    // Ouch face
+                    ctx.arc(headX, headY + 7, 3, 0, Math.PI * 2);
+                } else if (this.isCrouching) {
+                    // Focused/determined
+                    ctx.moveTo(headX - 3, headY + 7);
+                    ctx.lineTo(headX + 3, headY + 7);
+                } else {
+                    // Slight smile
+                    ctx.arc(headX, headY + 4, 4, 0.2, Math.PI - 0.2);
+                }
+                ctx.stroke();
+
+                // Arms and legs attach directly to the big head!
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 6;
+                ctx.lineCap = 'round';
+
+                // Short stubby legs - attached to bottom of head
+                const walkOffset = Math.sin(Date.now() / 100) * (Math.abs(this.vx) > 0.5 ? 2 : 0);
+                const legAttachY = headY + headRadius - 2;
+                const footY = legAttachY + 12; // Very short legs!
+
+                if (this.isCrouching) {
+                    // Bent stubby legs for crouch
+                    ctx.beginPath();
+                    ctx.moveTo(headX - 6, legAttachY);
+                    ctx.lineTo(headX - 10, footY);
+                    ctx.moveTo(headX + 6, legAttachY);
+                    ctx.lineTo(headX + 10, footY);
+                    ctx.stroke();
+                } else {
+                    ctx.beginPath();
+                    ctx.moveTo(headX - 5, legAttachY);
+                    ctx.lineTo(headX - 5 + walkOffset, footY);
+                    ctx.moveTo(headX + 5, legAttachY);
+                    ctx.lineTo(headX + 5 - walkOffset, footY);
+                    ctx.stroke();
+                }
+
+                // Feet (little circles)
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(headX - 5 + (this.isCrouching ? -5 : walkOffset), footY, 5, 0, Math.PI * 2);
+                ctx.arc(headX + 5 + (this.isCrouching ? 5 : -walkOffset), footY, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Arms attach to sides of head
+                const armAttachY = headY + 2;
+                const handX = headX + dir * 18;
+                const handY = headY + 8 + crouchOffset;
+
+                ctx.lineWidth = 5;
+                // Back arm - attached to back of head
+                ctx.strokeStyle = this.color;
+                ctx.beginPath();
+                ctx.moveTo(headX - dir * headRadius, armAttachY);
+                ctx.lineTo(headX - dir * 18, armAttachY + 8);
+                ctx.stroke();
+                // Back hand
+                ctx.fillStyle = '#FFE4C4';
+                ctx.beginPath();
+                ctx.arc(headX - dir * 18, armAttachY + 8, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Sword arm - attached to front of head
+                ctx.strokeStyle = this.color;
+                ctx.beginPath();
+                ctx.moveTo(headX + dir * headRadius, armAttachY);
+                ctx.lineTo(handX, handY);
+                ctx.stroke();
+                // Front hand
+                ctx.fillStyle = '#FFE4C4';
+                ctx.beginPath();
+                ctx.arc(handX, handY, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Update shoulder position for weapon
+                const shoulderX = headX;
+                const shoulderY = armAttachY;
+
+                // Weapon
+                const weaponLength = this.weapon.range;
+                const weaponEndX = handX + Math.cos(this.swordAngle) * weaponLength;
+                const weaponEndY = handY + Math.sin(this.swordAngle) * weaponLength;
+
+                // Weapon glow when attacking
+                if (this.isAttacking || this.isSmashing) {
+                    ctx.strokeStyle = this.isSmashing ? '#ffaa00' : '#ffffff';
+                    ctx.lineWidth = 6;
+                    ctx.globalAlpha = 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(handX, handY);
+                    ctx.lineTo(weaponEndX, weaponEndY);
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                }
+
+                // Weapon blade/head
+                ctx.strokeStyle = this.weapon.color;
+                ctx.lineWidth = this.weapon.name === 'Hammer' ? 6 : 3;
+                ctx.beginPath();
+                ctx.moveTo(handX, handY);
+                ctx.lineTo(weaponEndX, weaponEndY);
+                ctx.stroke();
+
+                // Weapon head for hammer/axe
+                if (this.weapon.name === 'Hammer') {
+                    ctx.fillStyle = this.weapon.color;
+                    ctx.save();
+                    ctx.translate(weaponEndX, weaponEndY);
+                    ctx.rotate(this.swordAngle);
+                    ctx.fillRect(-12, -5, 12, 10);
+                    ctx.restore();
+                } else if (this.weapon.name === 'Axe') {
+                    ctx.fillStyle = this.weapon.color;
+                    ctx.save();
+                    ctx.translate(weaponEndX, weaponEndY);
+                    ctx.rotate(this.swordAngle + Math.PI / 2);
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 10, 0, Math.PI);
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                // Handle
+                ctx.strokeStyle = '#8B4513';
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.moveTo(handX, handY);
+                ctx.lineTo(handX + Math.cos(this.swordAngle) * 8, handY + Math.sin(this.swordAngle) * 8);
+                ctx.stroke();
+
+                // Weapon timer indicator
+                if (this.weaponTimer > 0) {
+                    ctx.fillStyle = this.weapon.color;
+                    ctx.globalAlpha = 0.7;
+                    ctx.fillRect(this.x - 5, this.y - this.height - 15, (this.weaponTimer / POWERUP_DURATION) * 40, 5);
+                    ctx.globalAlpha = 1;
+                }
+
+                ctx.restore();
+            }
+        }
+
+        // Create players (spawn on bottom level platforms)
+        const player1 = new Player(450, platforms[1].y, '#4a9eff', {
+            left: 'a',
+            right: 'd',
+            jump: 'w',
+            down: 's',
+            attack: 'f',
+            smash: 'g'
+        }, true);
+
+        const player2 = new Player(800, platforms[2].y, '#ff4a4a', {
+            left: 'ArrowLeft',
+            right: 'ArrowRight',
+            jump: 'ArrowUp',
+            down: 'ArrowDown',
+            attack: 'l',
+            smash: 'k'
+        }, false);
+
+        function drawHealthBar(player, x, label) {
+            const barWidth = 200;
+            const barHeight = 20;
+            const healthPercent = Math.max(0, player.health / player.maxHealth);
+
+            // Background
+            ctx.fillStyle = '#333';
+            ctx.fillRect(x, 20, barWidth, barHeight);
+
+            // Health
+            ctx.fillStyle = player.color;
+            ctx.fillRect(x, 20, barWidth * healthPercent, barHeight);
+
+            // Border
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, 20, barWidth, barHeight);
+
+            // Label
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px Arial';
+            ctx.fillText(label, x, 55);
+            ctx.fillText(`${Math.max(0, Math.ceil(player.health))}%`, x + barWidth - 30, 55);
+        }
+
+        function drawPlatforms() {
+            for (const plat of platforms) {
+                // Platform body
+                ctx.fillStyle = '#3a3a5a';
+                ctx.fillRect(plat.x, plat.y, plat.width, 15);
+
+                // Platform top highlight
+                ctx.fillStyle = '#4a4a7a';
+                ctx.fillRect(plat.x, plat.y, plat.width, 5);
+
+                // Platform edges
+                ctx.fillStyle = '#2a2a4a';
+                ctx.fillRect(plat.x, plat.y + 5, 3, 10);
+                ctx.fillRect(plat.x + plat.width - 3, plat.y + 5, 3, 10);
+            }
+        }
+
+        function drawGameOver() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = winner === 1 ? '#4a9eff' : '#ff4a4a';
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`Player ${winner} Wins!`, canvas.width / 2, canvas.height / 2 - 20);
+
+            ctx.fillStyle = '#fff';
+            ctx.font = '24px Arial';
+            ctx.fillText('Press SPACE to restart', canvas.width / 2, canvas.height / 2 + 30);
+            ctx.textAlign = 'left';
+        }
+
+        function resetGame() {
+            player1.x = 450;
+            player1.y = platforms[1].y;
+            player1.vx = 0;
+            player1.vy = 0;
+            player1.health = 100;
+            player1.facingRight = true;
+            player1.isAttacking = false;
+            player1.isSmashing = false;
+            player1.attackTimer = 0;
+            player1.smashTimer = 0;
+            player1.attackCooldown = 0;
+            player1.smashCooldown = 0;
+            player1.invincible = 0;
+            player1.weapon = WEAPONS.sword;
+            player1.weaponTimer = 0;
+
+            player2.x = 800;
+            player2.y = platforms[2].y;
+            player2.vx = 0;
+            player2.vy = 0;
+            player2.health = 100;
+            player2.facingRight = false;
+            player2.isAttacking = false;
+            player2.isSmashing = false;
+            player2.attackTimer = 0;
+            player2.smashTimer = 0;
+            player2.attackCooldown = 0;
+            player2.smashCooldown = 0;
+            player2.invincible = 0;
+            player2.weapon = WEAPONS.sword;
+            player2.weaponTimer = 0;
+
+            // Clear powerups and projectiles
+            powerups = [];
+            projectiles = [];
+            powerupSpawnTimer = 0;
+
+            gameState = 'playing';
+            winner = null;
+        }
+
+        function gameLoop() {
+            // Screen shake offset
+            let shakeX = 0, shakeY = 0;
+            if (screenShake > 0) {
+                shakeX = (Math.random() - 0.5) * screenShake;
+                shakeY = (Math.random() - 0.5) * screenShake;
+                screenShake *= 0.9;
+                if (screenShake < 0.5) screenShake = 0;
+            }
+
+            ctx.save();
+            ctx.translate(shakeX, shakeY);
+
+            // Clear canvas
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(-10, -10, canvas.width + 20, canvas.height + 20);
+
+            // Draw background grid
+            ctx.strokeStyle = '#2a2a4a';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < canvas.width; i += 50) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvas.height);
+                ctx.stroke();
+            }
+            for (let i = 0; i < canvas.height; i += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(canvas.width, i);
+                ctx.stroke();
+            }
+
+            if (gameState === 'playing') {
+                // Update players
+                player1.update(player2);
+                player2.update(player1);
+
+                // Spawn powerups periodically
+                powerupSpawnTimer++;
+                if (powerupSpawnTimer >= 300 && powerups.length < 3) { // Every 5 seconds, max 3
+                    powerups.push(new PowerUp());
+                    powerupSpawnTimer = 0;
+                }
+
+                // Update powerups
+                for (let i = powerups.length - 1; i >= 0; i--) {
+                    powerups[i].update();
+
+                    // Check collection by players
+                    if (powerups[i].checkCollision(player1)) {
+                        player1.weapon = powerups[i].weapon;
+                        player1.weaponTimer = POWERUP_DURATION;
+                        powerups.splice(i, 1);
+                    } else if (powerups[i].checkCollision(player2)) {
+                        player2.weapon = powerups[i].weapon;
+                        player2.weaponTimer = POWERUP_DURATION;
+                        powerups.splice(i, 1);
+                    }
+                }
+
+                // Update projectiles
+                for (let i = projectiles.length - 1; i >= 0; i--) {
+                    projectiles[i].update();
+
+                    // Check if expired or off screen
+                    if (projectiles[i].life <= 0 || projectiles[i].x < -50 || projectiles[i].x > canvas.width + 50 || projectiles[i].y > canvas.height + 50) {
+                        projectiles.splice(i, 1);
+                        continue;
+                    }
+
+                    // Check platform collision
+                    const proj = projectiles[i];
+                    let hitPlatform = false;
+                    for (const plat of platforms) {
+                        if (proj.x > plat.x && proj.x < plat.x + plat.width &&
+                            proj.y > plat.y && proj.y < plat.y + 20) {
+                            hitPlatform = true;
+                            break;
+                        }
+                    }
+                    if (hitPlatform) {
+                        projectiles.splice(i, 1);
+                        continue;
+                    }
+
+                    // Check hits on players
+                    if (proj.checkHit(player1) && player1.invincible <= 0) {
+                        player1.health -= proj.weapon.damage;
+                        player1.invincible = 30;
+                        player1.hitFlash = 10;
+                        player1.vx = proj.vx > 0 ? proj.weapon.knockback : -proj.weapon.knockback;
+                        player1.vy = -4;
+                        screenShake = 6;
+                        projectiles.splice(i, 1);
+                    } else if (proj.checkHit(player2) && player2.invincible <= 0) {
+                        player2.health -= proj.weapon.damage;
+                        player2.invincible = 30;
+                        player2.hitFlash = 10;
+                        player2.vx = proj.vx > 0 ? proj.weapon.knockback : -proj.weapon.knockback;
+                        player2.vy = -4;
+                        screenShake = 6;
+                        projectiles.splice(i, 1);
+                    }
+                }
+
+                // Check for winner
+                if (player1.health <= 0) {
+                    gameState = 'gameover';
+                    winner = 2;
+                } else if (player2.health <= 0) {
+                    gameState = 'gameover';
+                    winner = 1;
+                }
+            }
+
+            // Draw
+            drawPlatforms();
+
+            // Draw powerups
+            for (const powerup of powerups) {
+                powerup.draw();
+            }
+
+            // Draw projectiles
+            for (const proj of projectiles) {
+                proj.draw();
+            }
+
+            player1.draw();
+            player2.draw();
+            drawHealthBar(player1, 20, 'Player 1');
+            drawHealthBar(player2, canvas.width - 220, 'Player 2');
+
+            ctx.restore();
+
+            if (gameState === 'gameover') {
+                drawGameOver();
+                if (keys[' ']) {
+                    resetGame();
+                }
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start the game
+        gameLoop();
+    </script>
+</body>
+</html>
