@@ -843,10 +843,12 @@
                     // Take damage rapidly (2 damage per frame = 120 per second)
                     this.health -= 2;
                     this.hitFlash = 5;
-                    // Bounce back up slightly
-                    this.vy = -8;
-                    this.y = spikeY;
                     screenShake = 3;
+                    // Stop at spike level but don't bounce
+                    if (this.y > canvas.height) {
+                        this.y = canvas.height;
+                        this.vy = 0;
+                    }
                 }
 
                 // Update timers
