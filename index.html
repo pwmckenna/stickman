@@ -778,11 +778,12 @@
                 const centerX = this.x + this.width / 2;
                 const feetY = this.y;
                 const dir = this.facingRight ? 1 : -1;
-                const crouchOffset = this.isCrouching ? 20 : 0;
-                const headX = centerX + dir * 3;
-                const headY = feetY - 50 + crouchOffset;
-                const handX = headX + dir * 18;
-                const handY = headY + 8 + crouchOffset;
+                const crouchOffset = this.isCrouching ? 15 : 0;
+                const headY = feetY - 55 + crouchOffset;
+                const headRadius = 10;
+                const shoulderY = headY + headRadius;
+                const handX = centerX + dir * 22;
+                const handY = shoulderY + 15 + crouchOffset;
                 const weaponLength = this.weapon.range;
                 return {
                     x: handX + Math.cos(this.swordAngle) * weaponLength,
@@ -804,75 +805,49 @@
                 const feetY = this.y;
                 const dir = this.facingRight ? 1 : -1;
 
-                // Victory dab pose! (head with limbs attached)
+                // Victory dab pose (stick figure style)
                 if (gameState === 'gameover' && this.health > 0) {
-                    const dabHeadX = centerX;
-                    const dabHeadY = feetY - 35;
-                    const dabHeadRadius = 14;
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 3;
+                    ctx.lineCap = 'round';
 
-                    // Big head
+                    const dabHeadX = centerX;
+                    const dabHeadY = feetY - 50;
+                    const dabHeadRadius = 10;
+
+                    // Head
                     ctx.beginPath();
                     ctx.arc(dabHeadX, dabHeadY, dabHeadRadius, 0, Math.PI * 2);
-                    ctx.fillStyle = '#FFE4C4';
-                    ctx.fill();
-                    ctx.strokeStyle = this.color;
-                    ctx.lineWidth = 2;
                     ctx.stroke();
 
-                    // Simple dot eyes
-                    ctx.fillStyle = '#000';
+                    // Body
+                    const dabShoulderY = dabHeadY + dabHeadRadius;
+                    const dabHipY = dabShoulderY + 20;
                     ctx.beginPath();
-                    ctx.arc(dabHeadX - 4, dabHeadY - 2, 2, 0, Math.PI * 2);
-                    ctx.arc(dabHeadX + 4, dabHeadY - 2, 2, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // Simple smile
-                    ctx.strokeStyle = '#000';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.arc(dabHeadX, dabHeadY + 3, 5, 0.3, Math.PI - 0.3);
+                    ctx.moveTo(dabHeadX, dabShoulderY);
+                    ctx.lineTo(dabHeadX, dabHipY);
                     ctx.stroke();
 
-                    // Short stubby legs attached to head
-                    ctx.strokeStyle = this.color;
-                    ctx.lineWidth = 6;
-                    ctx.lineCap = 'round';
-                    const dabFootY = dabHeadY + dabHeadRadius + 12;
+                    // Legs (spread stance)
+                    const dabFootY = dabHipY + 18;
                     ctx.beginPath();
-                    ctx.moveTo(dabHeadX - 5, dabHeadY + dabHeadRadius);
-                    ctx.lineTo(dabHeadX - 8, dabFootY);
-                    ctx.moveTo(dabHeadX + 5, dabHeadY + dabHeadRadius);
-                    ctx.lineTo(dabHeadX + 8, dabFootY);
+                    ctx.moveTo(dabHeadX, dabHipY);
+                    ctx.lineTo(dabHeadX - 10, dabFootY);
+                    ctx.moveTo(dabHeadX, dabHipY);
+                    ctx.lineTo(dabHeadX + 10, dabFootY);
                     ctx.stroke();
 
-                    // Feet
-                    ctx.fillStyle = this.color;
+                    // Dab arm (across face)
                     ctx.beginPath();
-                    ctx.arc(dabHeadX - 8, dabFootY, 5, 0, Math.PI * 2);
-                    ctx.arc(dabHeadX + 8, dabFootY, 5, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // Dab arm (across face) - attached to head
-                    ctx.lineWidth = 5;
-                    ctx.beginPath();
-                    ctx.moveTo(dabHeadX + dabHeadRadius, dabHeadY);
-                    ctx.lineTo(dabHeadX + 25, dabHeadY - 15);
+                    ctx.moveTo(dabHeadX, dabShoulderY);
+                    ctx.lineTo(dabHeadX + 20, dabHeadY - 5);
                     ctx.stroke();
-                    ctx.fillStyle = '#FFE4C4';
-                    ctx.beginPath();
-                    ctx.arc(dabHeadX + 25, dabHeadY - 15, 5, 0, Math.PI * 2);
-                    ctx.fill();
 
-                    // Extended arm (pointing out) - attached to head
-                    ctx.strokeStyle = this.color;
+                    // Extended arm (pointing out diagonally)
                     ctx.beginPath();
-                    ctx.moveTo(dabHeadX - dabHeadRadius, dabHeadY);
-                    ctx.lineTo(dabHeadX - 30, dabHeadY - 20);
+                    ctx.moveTo(dabHeadX, dabShoulderY);
+                    ctx.lineTo(dabHeadX - 30, dabShoulderY - 15);
                     ctx.stroke();
-                    ctx.fillStyle = '#FFE4C4';
-                    ctx.beginPath();
-                    ctx.arc(dabHeadX - 30, dabHeadY - 20, 5, 0, Math.PI * 2);
-                    ctx.fill();
 
                     ctx.restore();
                     return;
@@ -888,149 +863,103 @@
                     ctx.globalAlpha = 0.7;
                 }
 
-                // Roll animation - plump ball rolling
+                // Roll animation (stick figure tumbling)
                 if (this.isRolling) {
                     const rollProgress = (ROLL_DURATION - this.rollTimer) / ROLL_DURATION;
                     const rotation = rollProgress * Math.PI * 4 * this.rollDirection;
 
-                    ctx.translate(centerX, feetY - 18);
+                    ctx.translate(centerX, feetY - 25);
                     ctx.rotate(rotation);
 
-                    // Plump curled body
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 18, 0, Math.PI * 2);
-                    ctx.fillStyle = '#FFE4C4';
-                    ctx.fill();
                     ctx.strokeStyle = this.color;
                     ctx.lineWidth = 3;
+                    ctx.lineCap = 'round';
+
+                    // Curled up stick figure
+                    // Head
+                    ctx.beginPath();
+                    ctx.arc(8, -8, 8, 0, Math.PI * 2);
                     ctx.stroke();
 
-                    // Head tucked in
+                    // Curved body
                     ctx.beginPath();
-                    ctx.arc(10, -6, 8, 0, Math.PI * 2);
-                    ctx.fillStyle = '#FFE4C4';
-                    ctx.fill();
+                    ctx.arc(0, 0, 12, -0.5, Math.PI + 0.5);
                     ctx.stroke();
 
-                    // Simple dot eyes
-                    ctx.fillStyle = '#000';
+                    // Tucked limbs
                     ctx.beginPath();
-                    ctx.arc(8, -8, 2, 0, Math.PI * 2);
-                    ctx.arc(13, -6, 2, 0, Math.PI * 2);
-                    ctx.fill();
+                    ctx.moveTo(-8, 8);
+                    ctx.lineTo(-5, 15);
+                    ctx.moveTo(8, 8);
+                    ctx.lineTo(5, 15);
+                    ctx.stroke();
 
                     ctx.restore();
                     return;
                 }
 
-                // Draw stickman
+                // Draw classic stick figure
                 ctx.strokeStyle = this.color;
-                ctx.lineWidth = 4;
+                ctx.lineWidth = 3;
                 ctx.lineCap = 'round';
 
                 // Crouch makes character shorter
-                const crouchOffset = this.isCrouching ? 20 : 0;
+                const crouchOffset = this.isCrouching ? 15 : 0;
 
-                // Head - offset in facing direction
-                const headX = centerX + dir * 3;
-                const headY = feetY - 50 + crouchOffset;
-                const headRadius = 12;
+                // Head position
+                const headX = centerX;
+                const headY = feetY - 55 + crouchOffset;
+                const headRadius = 10;
 
-                // Head outline and fill
+                // Head (circle outline)
                 ctx.beginPath();
                 ctx.arc(headX, headY, headRadius, 0, Math.PI * 2);
-                ctx.fillStyle = '#FFE4C4'; // Skin tone
-                ctx.fill();
-                ctx.strokeStyle = this.color;
-                ctx.lineWidth = 2;
                 ctx.stroke();
 
-                // Simple stickman face - just dots for eyes and a smile
-                const eyeY = headY - 2;
-                const leftEyeX = headX - 4;
-                const rightEyeX = headX + 4;
-
-                // Simple dot eyes
-                ctx.fillStyle = '#000';
+                // Body (torso line)
+                const shoulderY = headY + headRadius;
+                const hipY = shoulderY + 20;
                 ctx.beginPath();
-                ctx.arc(leftEyeX, eyeY, 2, 0, Math.PI * 2);
-                ctx.arc(rightEyeX, eyeY, 2, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Simple smile
-                ctx.strokeStyle = '#000';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(headX, headY + 3, 5, 0.3, Math.PI - 0.3);
+                ctx.moveTo(headX, shoulderY);
+                ctx.lineTo(headX, hipY);
                 ctx.stroke();
 
-                // Arms and legs attach directly to the big head!
-                ctx.strokeStyle = this.color;
-                ctx.lineWidth = 6;
-                ctx.lineCap = 'round';
-
-                // Short stubby legs - attached to bottom of head
-                const walkOffset = Math.sin(Date.now() / 100) * (Math.abs(this.vx) > 0.5 ? 2 : 0);
-                const legAttachY = headY + headRadius - 2;
-                const footY = legAttachY + 12; // Very short legs!
+                // Legs
+                const walkOffset = Math.sin(Date.now() / 100) * (Math.abs(this.vx) > 0.5 ? 5 : 0);
+                const footY = hipY + 18;
 
                 if (this.isCrouching) {
-                    // Bent stubby legs for crouch
+                    // Bent legs for crouch
                     ctx.beginPath();
-                    ctx.moveTo(headX - 6, legAttachY);
-                    ctx.lineTo(headX - 10, footY);
-                    ctx.moveTo(headX + 6, legAttachY);
-                    ctx.lineTo(headX + 10, footY);
+                    ctx.moveTo(headX, hipY);
+                    ctx.lineTo(headX - 12, footY);
+                    ctx.moveTo(headX, hipY);
+                    ctx.lineTo(headX + 12, footY);
                     ctx.stroke();
                 } else {
                     ctx.beginPath();
-                    ctx.moveTo(headX - 5, legAttachY);
-                    ctx.lineTo(headX - 5 + walkOffset, footY);
-                    ctx.moveTo(headX + 5, legAttachY);
-                    ctx.lineTo(headX + 5 - walkOffset, footY);
+                    ctx.moveTo(headX, hipY);
+                    ctx.lineTo(headX - 8 + walkOffset, footY);
+                    ctx.moveTo(headX, hipY);
+                    ctx.lineTo(headX + 8 - walkOffset, footY);
                     ctx.stroke();
                 }
 
-                // Feet (little circles)
-                ctx.fillStyle = this.color;
-                ctx.beginPath();
-                ctx.arc(headX - 5 + (this.isCrouching ? -5 : walkOffset), footY, 5, 0, Math.PI * 2);
-                ctx.arc(headX + 5 + (this.isCrouching ? 5 : -walkOffset), footY, 5, 0, Math.PI * 2);
-                ctx.fill();
+                // Arms
+                const handX = headX + dir * 22;
+                const handY = shoulderY + 15 + crouchOffset;
 
-                // Arms attach to sides of head
-                const armAttachY = headY + 2;
-                const handX = headX + dir * 18;
-                const handY = headY + 8 + crouchOffset;
-
-                ctx.lineWidth = 5;
-                // Back arm - attached to back of head
-                ctx.strokeStyle = this.color;
+                // Back arm
                 ctx.beginPath();
-                ctx.moveTo(headX - dir * headRadius, armAttachY);
-                ctx.lineTo(headX - dir * 18, armAttachY + 8);
+                ctx.moveTo(headX, shoulderY);
+                ctx.lineTo(headX - dir * 15, shoulderY + 12);
                 ctx.stroke();
-                // Back hand
-                ctx.fillStyle = '#FFE4C4';
-                ctx.beginPath();
-                ctx.arc(headX - dir * 18, armAttachY + 8, 5, 0, Math.PI * 2);
-                ctx.fill();
 
-                // Sword arm - attached to front of head
-                ctx.strokeStyle = this.color;
+                // Sword arm
                 ctx.beginPath();
-                ctx.moveTo(headX + dir * headRadius, armAttachY);
+                ctx.moveTo(headX, shoulderY);
                 ctx.lineTo(handX, handY);
                 ctx.stroke();
-                // Front hand
-                ctx.fillStyle = '#FFE4C4';
-                ctx.beginPath();
-                ctx.arc(handX, handY, 5, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Update shoulder position for weapon
-                const shoulderX = headX;
-                const shoulderY = armAttachY;
 
                 // Weapon
                 const weaponLength = this.weapon.range;
