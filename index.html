@@ -292,6 +292,34 @@
                     bgCtx.fillRect(canvas.width - 100 + sx * blockSize, 20 + sy * blockSize, blockSize, blockSize);
                 }
             }
+
+            // Spikes at the bottom
+            const spikeWidth = 20;
+            const spikeHeight = 30;
+            for (let x = 0; x < canvas.width; x += spikeWidth) {
+                // Spike triangle
+                bgCtx.fillStyle = '#444';
+                bgCtx.beginPath();
+                bgCtx.moveTo(x, canvas.height);
+                bgCtx.lineTo(x + spikeWidth / 2, canvas.height - spikeHeight);
+                bgCtx.lineTo(x + spikeWidth, canvas.height);
+                bgCtx.closePath();
+                bgCtx.fill();
+
+                // Spike highlight
+                bgCtx.strokeStyle = '#666';
+                bgCtx.lineWidth = 2;
+                bgCtx.beginPath();
+                bgCtx.moveTo(x + spikeWidth / 2, canvas.height - spikeHeight);
+                bgCtx.lineTo(x + spikeWidth, canvas.height);
+                bgCtx.stroke();
+
+                // Spike tip highlight
+                bgCtx.fillStyle = '#888';
+                bgCtx.beginPath();
+                bgCtx.arc(x + spikeWidth / 2, canvas.height - spikeHeight + 3, 2, 0, Math.PI * 2);
+                bgCtx.fill();
+            }
         }
         renderBackground();
 
@@ -809,9 +837,16 @@
                 if (this.x < -50) this.x = -50;
                 if (this.x > canvas.width + 20) this.x = canvas.width + 20;
 
-                // Ring out (fall off bottom)
-                if (this.y > canvas.height + 50) {
-                    this.health = 0;
+                // Spike pit at bottom - deals rapid damage
+                const spikeY = canvas.height - 30;
+                if (this.y > spikeY) {
+                    // Take damage rapidly (2 damage per frame = 120 per second)
+                    this.health -= 2;
+                    this.hitFlash = 5;
+                    // Bounce back up slightly
+                    this.vy = -8;
+                    this.y = spikeY;
+                    screenShake = 3;
                 }
 
                 // Update timers
