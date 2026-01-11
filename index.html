@@ -238,6 +238,63 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
+        // Pre-render Minecraft background (render once, no flickering)
+        const backgroundCanvas = document.createElement('canvas');
+        backgroundCanvas.width = canvas.width;
+        backgroundCanvas.height = canvas.height;
+        const bgCtx = backgroundCanvas.getContext('2d');
+
+        function renderBackground() {
+            const blockSize = 20;
+
+            // Sky gradient (top to bottom)
+            for (let y = 0; y < canvas.height; y += blockSize) {
+                for (let x = 0; x < canvas.width; x += blockSize) {
+                    const skyProgress = y / canvas.height;
+                    if (skyProgress < 0.6) {
+                        // Sky blocks - light blue with slight variation
+                        const shade = Math.floor(Math.random() * 20);
+                        bgCtx.fillStyle = `rgb(${100 + shade}, ${180 + shade}, ${255 - shade})`;
+                    } else if (skyProgress < 0.75) {
+                        // Dirt blocks
+                        const shade = Math.floor(Math.random() * 30);
+                        bgCtx.fillStyle = `rgb(${139 - shade}, ${90 - shade}, ${43 - shade})`;
+                    } else {
+                        // Stone blocks at very bottom
+                        const shade = Math.floor(Math.random() * 25);
+                        bgCtx.fillStyle = `rgb(${100 + shade}, ${100 + shade}, ${100 + shade})`;
+                    }
+                    bgCtx.fillRect(x, y, blockSize, blockSize);
+
+                    // Block outline for that pixelated look
+                    bgCtx.strokeStyle = 'rgba(0,0,0,0.15)';
+                    bgCtx.lineWidth = 1;
+                    bgCtx.strokeRect(x, y, blockSize, blockSize);
+                }
+            }
+
+            // Add some clouds (white blocks)
+            const cloudPositions = [
+                {x: 100, y: 40}, {x: 120, y: 40}, {x: 140, y: 40}, {x: 120, y: 20},
+                {x: 400, y: 60}, {x: 420, y: 60}, {x: 440, y: 60}, {x: 460, y: 60}, {x: 420, y: 40}, {x: 440, y: 40},
+                {x: 800, y: 30}, {x: 820, y: 30}, {x: 840, y: 30}, {x: 820, y: 10},
+                {x: 1100, y: 50}, {x: 1120, y: 50}, {x: 1140, y: 50}, {x: 1160, y: 50}, {x: 1120, y: 30}, {x: 1140, y: 30}
+            ];
+            bgCtx.fillStyle = '#fff';
+            cloudPositions.forEach(pos => {
+                bgCtx.fillRect(pos.x, pos.y, blockSize, blockSize);
+            });
+
+            // Sun (yellow blocks in corner)
+            bgCtx.fillStyle = '#FFD700';
+            for (let sy = 0; sy < 3; sy++) {
+                for (let sx = 0; sx < 3; sx++) {
+                    bgCtx.fillRect(canvas.width - 100 + sx * blockSize, 20 + sy * blockSize, blockSize, blockSize);
+                }
+            }
+        }
+        renderBackground();
+
         // Game constants
         const GRAVITY = 0.6;
         const MOVE_SPEED = 5;
@@ -1210,54 +1267,8 @@
             ctx.save();
             ctx.translate(shakeX, shakeY);
 
-            // Draw Minecraft-style background
-            const blockSize = 20;
-
-            // Sky gradient (top to bottom)
-            for (let y = 0; y < canvas.height; y += blockSize) {
-                for (let x = 0; x < canvas.width; x += blockSize) {
-                    const skyProgress = y / canvas.height;
-                    if (skyProgress < 0.6) {
-                        // Sky blocks - light blue with slight variation
-                        const shade = Math.floor(Math.random() * 20);
-                        ctx.fillStyle = `rgb(${100 + shade}, ${180 + shade}, ${255 - shade})`;
-                    } else if (skyProgress < 0.75) {
-                        // Dirt blocks
-                        const shade = Math.floor(Math.random() * 30);
-                        ctx.fillStyle = `rgb(${139 - shade}, ${90 - shade}, ${43 - shade})`;
-                    } else {
-                        // Stone blocks at very bottom
-                        const shade = Math.floor(Math.random() * 25);
-                        ctx.fillStyle = `rgb(${100 + shade}, ${100 + shade}, ${100 + shade})`;
-                    }
-                    ctx.fillRect(x, y, blockSize, blockSize);
-
-                    // Block outline for that pixelated look
-                    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-                    ctx.lineWidth = 1;
-                    ctx.strokeRect(x, y, blockSize, blockSize);
-                }
-            }
-
-            // Add some clouds (white blocks)
-            const cloudPositions = [
-                {x: 100, y: 40}, {x: 120, y: 40}, {x: 140, y: 40}, {x: 120, y: 20},
-                {x: 400, y: 60}, {x: 420, y: 60}, {x: 440, y: 60}, {x: 460, y: 60}, {x: 420, y: 40}, {x: 440, y: 40},
-                {x: 800, y: 30}, {x: 820, y: 30}, {x: 840, y: 30}, {x: 820, y: 10},
-                {x: 1100, y: 50}, {x: 1120, y: 50}, {x: 1140, y: 50}, {x: 1160, y: 50}, {x: 1120, y: 30}, {x: 1140, y: 30}
-            ];
-            ctx.fillStyle = '#fff';
-            cloudPositions.forEach(pos => {
-                ctx.fillRect(pos.x, pos.y, blockSize, blockSize);
-            });
-
-            // Sun (yellow blocks in corner)
-            ctx.fillStyle = '#FFD700';
-            for (let sy = 0; sy < 3; sy++) {
-                for (let sx = 0; sx < 3; sx++) {
-                    ctx.fillRect(canvas.width - 100 + sx * blockSize, 20 + sy * blockSize, blockSize, blockSize);
-                }
-            }
+            // Draw cached background
+            ctx.drawImage(backgroundCanvas, 0, 0);
 
             if (gameState === 'playing') {
                 // Update players
