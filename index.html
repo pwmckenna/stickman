@@ -889,8 +889,8 @@
 
                 // Hit detection
                 if ((this.isAttacking && this.attackTimer > 5) || (this.isSmashing && this.smashTimer > 10 && this.smashTimer < 25)) {
-                    const swordTip = this.getSwordTip();
-                    if (this.checkHit(other, swordTip)) {
+                    const swordLine = this.getSwordLine();
+                    if (this.checkHit(other, swordLine)) {
                         if (other.invincible <= 0) {
                             // Use weapon stats for damage, smash multiplies knockback
                             const damage = this.isSmashing ? SMASH_DAMAGE : this.weapon.damage;
@@ -906,7 +906,7 @@
                 }
             }
 
-            getSwordTip() {
+            getSwordLine() {
                 const centerX = this.x + this.width / 2;
                 const feetY = this.y;
                 const dir = this.facingRight ? 1 : -1;
@@ -918,16 +918,34 @@
                 const handY = shoulderY + 15 + crouchOffset;
                 const weaponLength = this.weapon.range;
                 return {
-                    x: handX + Math.cos(this.swordAngle) * weaponLength,
-                    y: handY + Math.sin(this.swordAngle) * weaponLength
+                    x1: handX,
+                    y1: handY,
+                    x2: handX + Math.cos(this.swordAngle) * weaponLength,
+                    y2: handY + Math.sin(this.swordAngle) * weaponLength
                 };
             }
 
-            checkHit(other, swordTip) {
-                return swordTip.x > other.x - 10 &&
-                       swordTip.x < other.x + other.width + 10 &&
-                       swordTip.y > other.y - other.height - 10 &&
-                       swordTip.y < other.y + 10;
+            getSwordTip() {
+                const line = this.getSwordLine();
+                return { x: line.x2, y: line.y2 };
+            }
+
+            checkHit(other, swordLine) {
+                // Check if sword blade (line) intersects with opponent hitbox
+                const boxLeft = other.x - 10;
+                const boxRight = other.x + other.width + 10;
+                const boxTop = other.y - other.height - 10;
+                const boxBottom = other.y + 10;
+
+                // Check multiple points along the blade
+                for (let t = 0; t <= 1; t += 0.1) {
+                    const px = swordLine.x1 + (swordLine.x2 - swordLine.x1) * t;
+                    const py = swordLine.y1 + (swordLine.y2 - swordLine.y1) * t;
+                    if (px > boxLeft && px < boxRight && py > boxTop && py < boxBottom) {
+                        return true;
+                    }
+                }
+                return false;
             }
 
             draw() {
