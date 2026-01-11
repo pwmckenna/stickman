@@ -837,17 +837,18 @@
                 if (this.x < -50) this.x = -50;
                 if (this.x > canvas.width + 20) this.x = canvas.width + 20;
 
-                // Spike pit at bottom - deals rapid damage
+                // Spike pit at bottom - deals damage over time
                 const spikeY = canvas.height - 30;
                 if (this.y > spikeY) {
-                    // Take damage rapidly (2 damage per frame = 120 per second)
-                    this.health -= 2;
+                    // Take damage (0.5 per frame = 30 per second)
+                    this.health -= 0.5;
                     this.hitFlash = 5;
-                    screenShake = 3;
-                    // Stop at spike level but don't bounce
+                    screenShake = 2;
+                    // Can stand on spikes but still jump out
                     if (this.y > canvas.height) {
                         this.y = canvas.height;
-                        this.vy = 0;
+                        this.isGrounded = true;
+                        if (this.vy > 0) this.vy = 0;
                     }
                 }
 
