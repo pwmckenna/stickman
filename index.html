@@ -738,16 +738,55 @@
             resetGame();
         }
 
+        function playAgain() {
+            resetGame();
+            // Re-apply AI weapon for difficulty in 1-player mode
+            if (gameMode === 1) {
+                if (aiDifficulty === 'hard') {
+                    player2.weapon = WEAPONS.spear;
+                    player2.weaponTimer = Infinity;
+                } else if (aiDifficulty === 'insane') {
+                    player2.weapon = WEAPONS.bow;
+                    player2.weaponTimer = Infinity;
+                }
+            }
+        }
+
+        function confirmGameOverSelection() {
+            if (gameOverSelection === 0) {
+                playAgain();
+            } else {
+                returnToMenu();
+            }
+        }
+
+        function handleGameOverClick(x, y) {
+            const b = drawGameOver._buttons;
+            if (!b) return;
+            // Scale click coords to canvas coords
+            const rect = canvas.getBoundingClientRect();
+            const cx = (x - rect.left) * (canvas.width / rect.width);
+            const cy = (y - rect.top) * (canvas.height / rect.height);
+            if (cy >= b.btnY && cy <= b.btnY + b.btnH) {
+                if (cx >= b.leftX && cx <= b.leftX + b.btnW) {
+                    playAgain();
+                } else if (cx >= b.rightX && cx <= b.rightX + b.btnW) {
+                    returnToMenu();
+                }
+            }
+        }
+
         canvas.addEventListener('touchstart', (e) => {
             if (gameState === 'gameover') {
                 e.preventDefault();
-                returnToMenu();
+                const touch = e.touches[0];
+                handleGameOverClick(touch.clientX, touch.clientY);
             }
         }, { passive: false });
 
         canvas.addEventListener('click', (e) => {
             if (gameState === 'gameover') {
-                returnToMenu();
+                handleGameOverClick(e.clientX, e.clientY);
             }
         });
 
@@ -1498,6 +1537,8 @@
         // Detect touch device
         const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
 
+        let gameOverSelection = 0; // 0 = Play Again, 1 = Menu
+
         function drawGameOver() {
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1505,13 +1546,44 @@
             ctx.fillStyle = winner === 1 ? '#4a9eff' : '#ff4a4a';
             ctx.font = 'bold 48px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText(`Player ${winner} Wins!`, canvas.width / 2, canvas.height / 2 - 20);
+            ctx.fillText(`Player ${winner} Wins!`, canvas.width / 2, canvas.height / 2 - 40);
 
+            const btnY = canvas.height / 2 + 20;
+            const btnW = 180;
+            const btnH = 50;
+            const gap = 30;
+            const leftX = canvas.width / 2 - btnW - gap / 2;
+            const rightX = canvas.width / 2 + gap / 2;
+
+            // Play Again button
+            ctx.fillStyle = gameOverSelection === 0 ? '#4a9eff' : '#555';
+            ctx.beginPath();
+            ctx.roundRect(leftX, btnY, btnW, btnH, 8);
+            ctx.fill();
             ctx.fillStyle = '#fff';
-            ctx.font = '24px Arial';
-            const restartText = isTouchDevice ? 'Tap screen to restart' : 'Press SPACE to restart';
-            ctx.fillText(restartText, canvas.width / 2, canvas.height / 2 + 30);
+            ctx.font = 'bold 22px Arial';
+            ctx.fillText('Play Again', leftX + btnW / 2, btnY + 33);
+
+            // Menu button
+            ctx.fillStyle = gameOverSelection === 1 ? '#4a9eff' : '#555';
+            ctx.beginPath();
+            ctx.roundRect(rightX, btnY, btnW, btnH, 8);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 22px Arial';
+            ctx.fillText('Menu', rightX + btnW / 2, btnY + 33);
+
+            ctx.fillStyle = '#aaa';
+            ctx.font = '16px Arial';
+            if (isTouchDevice) {
+                ctx.fillText('Tap a button', canvas.width / 2, btnY + btnH + 30);
+            } else {
+                ctx.fillText('← → to select, SPACE to confirm', canvas.width / 2, btnY + btnH + 30);
+            }
             ctx.textAlign = 'left';
+
+            // Store button rects for click/touch detection
+            drawGameOver._buttons = { leftX, rightX, btnY, btnW, btnH };
         }
 
         function resetGame() {
@@ -1789,9 +1861,11 @@
                 if (player1.health <= 0) {
                     gameState = 'gameover';
                     winner = 2;
+                    gameOverSelection = 0;
                 } else if (player2.health <= 0) {
                     gameState = 'gameover';
                     winner = 1;
+                    gameOverSelection = 0;
                 }
             }
 
@@ -1817,8 +1891,19 @@
 
             if (gameState === 'gameover') {
                 drawGameOver();
+                if (keys['ArrowLeft'] || keys['a']) {
+                    gameOverSelection = 0;
+                    keys['ArrowLeft'] = false;
+                    keys['a'] = false;
+                }
+                if (keys['ArrowRight'] || keys['d']) {
+                    gameOverSelection = 1;
+                    keys['ArrowRight'] = false;
+                    keys['d'] = false;
+                }
                 if (keys[' ']) {
-                    returnToMenu();
+                    keys[' '] = false;
+                    confirmGameOverSelection();
                 }
             }
 
