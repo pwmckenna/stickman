@@ -238,6 +238,76 @@
             font-size: 14px;
             margin-top: 6px;
         }
+
+        /* Difficulty selection screen */
+        #difficultyScreen {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(26, 26, 46, 0.95);
+            z-index: 210;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+        #difficultyScreen.visible {
+            display: flex;
+        }
+        #difficultyScreen h2 {
+            color: #fff;
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+        .diff-btn {
+            width: 280px;
+            padding: 18px 0;
+            font-size: 24px;
+            font-weight: bold;
+            border: 3px solid;
+            border-radius: 16px;
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+            text-align: center;
+        }
+        .diff-btn:active {
+            transform: scale(0.95);
+        }
+        .diff-btn.easy {
+            background: rgba(100, 255, 100, 0.3);
+            border-color: #64ff64;
+            color: #64ff64;
+        }
+        .diff-btn.medium {
+            background: rgba(255, 200, 50, 0.3);
+            border-color: #ffc832;
+            color: #ffc832;
+        }
+        .diff-btn.hard {
+            background: rgba(255, 100, 50, 0.3);
+            border-color: #ff6432;
+            color: #ff6432;
+        }
+        .diff-btn.insane {
+            background: rgba(255, 50, 50, 0.3);
+            border-color: #ff3232;
+            color: #ff3232;
+        }
+        .diff-desc {
+            color: #888;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+        .diff-back {
+            margin-top: 10px;
+            color: #888;
+            font-size: 18px;
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+        }
     </style>
 </head>
 <body>
@@ -266,6 +336,28 @@
             2 Players
             <div class="mode-desc">Play with a friend</div>
         </div>
+    </div>
+
+    <!-- Difficulty Selection Screen -->
+    <div id="difficultyScreen">
+        <h2>Select Difficulty</h2>
+        <div class="diff-btn easy" data-diff="easy">
+            Easy
+            <div class="diff-desc">Beginner friendly</div>
+        </div>
+        <div class="diff-btn medium" data-diff="medium">
+            Medium
+            <div class="diff-desc">Average opponent</div>
+        </div>
+        <div class="diff-btn hard" data-diff="hard">
+            Hard
+            <div class="diff-desc">Starts with Spear</div>
+        </div>
+        <div class="diff-btn insane" data-diff="insane">
+            Insane
+            <div class="diff-desc">Starts with Bow &mdash; good luck</div>
+        </div>
+        <div class="diff-back" id="diffBack">&larr; Back</div>
     </div>
 
     <!-- Touch Controls for iPad/Mobile -->
@@ -460,42 +552,78 @@
 
         // Game mode: 1 = single player (AI controls P2), 2 = two player
         let gameMode = 2;
+        let aiDifficulty = 'medium'; // 'easy', 'medium', 'hard', 'insane'
         // On touch devices, start in menu; on desktop, go straight to 2-player
         const isTouchDeviceEarly = window.matchMedia('(pointer: coarse)').matches;
         let gameStarted = !isTouchDeviceEarly;
 
-        // Start screen button handling
-        document.getElementById('btnOnePlayer').addEventListener('touchstart', (e) => {
-            e.preventDefault();
+        function showDifficultyScreen() {
+            document.getElementById('difficultyScreen').classList.add('visible');
+        }
+        function hideDifficultyScreen() {
+            document.getElementById('difficultyScreen').classList.remove('visible');
+        }
+
+        function startOnePlayer(difficulty) {
+            aiDifficulty = difficulty;
             gameMode = 1;
             gameStarted = true;
-            document.getElementById('startScreen').classList.add('hidden');
-            // Hide P2 touch controls
-            document.querySelectorAll('.touch-zone.right, .action-btns.p2, .player-label.p2').forEach(el => el.style.display = 'none');
-            resetGame();
-        }, { passive: false });
-        document.getElementById('btnOnePlayer').addEventListener('click', (e) => {
-            gameMode = 1;
-            gameStarted = true;
+            hideDifficultyScreen();
             document.getElementById('startScreen').classList.add('hidden');
             document.querySelectorAll('.touch-zone.right, .action-btns.p2, .player-label.p2').forEach(el => el.style.display = 'none');
             resetGame();
-        });
-        document.getElementById('btnTwoPlayer').addEventListener('touchstart', (e) => {
-            e.preventDefault();
+            // Give AI starting weapon based on difficulty
+            if (difficulty === 'hard') {
+                player2.weapon = WEAPONS.spear;
+                player2.weaponTimer = Infinity;
+            } else if (difficulty === 'insane') {
+                player2.weapon = WEAPONS.bow;
+                player2.weaponTimer = Infinity;
+            }
+        }
+
+        function startTwoPlayer() {
             gameMode = 2;
             gameStarted = true;
             document.getElementById('startScreen').classList.add('hidden');
+            hideDifficultyScreen();
             document.querySelectorAll('.touch-zone.right, .action-btns.p2, .player-label.p2').forEach(el => el.style.display = '');
             resetGame();
-        }, { passive: false });
-        document.getElementById('btnTwoPlayer').addEventListener('click', (e) => {
-            gameMode = 2;
-            gameStarted = true;
-            document.getElementById('startScreen').classList.add('hidden');
-            document.querySelectorAll('.touch-zone.right, .action-btns.p2, .player-label.p2').forEach(el => el.style.display = '');
-            resetGame();
+        }
+
+        // 1 Player button -> show difficulty screen
+        function onOnePlayerClick(e) {
+            if (e.type === 'touchstart') e.preventDefault();
+            showDifficultyScreen();
+        }
+        document.getElementById('btnOnePlayer').addEventListener('touchstart', onOnePlayerClick, { passive: false });
+        document.getElementById('btnOnePlayer').addEventListener('click', onOnePlayerClick);
+
+        // 2 Player button -> start directly
+        function onTwoPlayerClick(e) {
+            if (e.type === 'touchstart') e.preventDefault();
+            startTwoPlayer();
+        }
+        document.getElementById('btnTwoPlayer').addEventListener('touchstart', onTwoPlayerClick, { passive: false });
+        document.getElementById('btnTwoPlayer').addEventListener('click', onTwoPlayerClick);
+
+        // Difficulty buttons
+        document.querySelectorAll('.diff-btn').forEach(btn => {
+            function handler(e) {
+                if (e.type === 'touchstart') e.preventDefault();
+                startOnePlayer(btn.dataset.diff);
+            }
+            btn.addEventListener('touchstart', handler, { passive: false });
+            btn.addEventListener('click', handler);
         });
+
+        // Back button
+        function onDiffBack(e) {
+            if (e.type === 'touchstart') e.preventDefault();
+            hideDifficultyScreen();
+        }
+        document.getElementById('diffBack').addEventListener('touchstart', onDiffBack, { passive: false });
+        document.getElementById('diffBack').addEventListener('click', onDiffBack);
 
         // Game state
         let gameState = 'playing'; // 'playing', 'gameover'
@@ -1285,7 +1413,7 @@
                 ctx.stroke();
 
                 // Weapon timer indicator
-                if (this.weaponTimer > 0) {
+                if (this.weaponTimer > 0 && this.weaponTimer !== Infinity) {
                     ctx.fillStyle = this.weapon.color;
                     ctx.globalAlpha = 0.7;
                     ctx.fillRect(this.x - 5, this.y - this.height - 15, (this.weaponTimer / POWERUP_DURATION) * 40, 5);
@@ -1428,9 +1556,52 @@
             winner = null;
         }
 
+        // AI difficulty settings
+        const AI_SETTINGS = {
+            easy: {
+                reactionChance: 0.4,   // chance AI acts each frame (slow reactions)
+                attackChance: 0.08,     // low attack frequency
+                smashChance: 0.01,
+                jumpChance: 0.005,
+                rollChance: 0.05,
+                chaseRange: 100,        // starts chasing further away (sluggish)
+                retreatRange: 0,        // never backs off
+                trackVertical: false,   // doesn't chase vertically
+            },
+            medium: {
+                reactionChance: 0.7,
+                attackChance: 0.25,
+                smashChance: 0.04,
+                jumpChance: 0.02,
+                rollChance: 0.2,
+                chaseRange: 60,
+                retreatRange: 30,
+                trackVertical: true,
+            },
+            hard: {
+                reactionChance: 0.9,
+                attackChance: 0.45,
+                smashChance: 0.08,
+                jumpChance: 0.03,
+                rollChance: 0.4,
+                chaseRange: 50,
+                retreatRange: 35,
+                trackVertical: true,
+            },
+            insane: {
+                reactionChance: 1.0,    // always reacts
+                attackChance: 0.6,      // attacks very frequently
+                smashChance: 0.12,
+                jumpChance: 0.04,
+                rollChance: 0.5,
+                chaseRange: 45,
+                retreatRange: 40,
+                trackVertical: true,
+            },
+        };
+
         // AI controller for player 2 in single-player mode
         function updateAI(ai, target) {
-            // Clear all AI keys first
             const c = ai.controls;
             keys[c.left] = false;
             keys[c.right] = false;
@@ -1439,6 +1610,11 @@
             keys[c.attack] = false;
             keys[c.smash] = false;
 
+            const s = AI_SETTINGS[aiDifficulty] || AI_SETTINGS.medium;
+
+            // Reaction gate — easy AI skips frames
+            if (Math.random() > s.reactionChance) return;
+
             const aiCX = ai.x + ai.width / 2;
             const targetCX = target.x + target.width / 2;
             const dx = targetCX - aiCX;
@@ -1446,44 +1622,60 @@
             const dist = Math.abs(dx);
 
             // Move toward target
-            if (dist > 60) {
+            if (dist > s.chaseRange) {
                 if (dx > 0) keys[c.right] = true;
                 else keys[c.left] = true;
-            } else if (dist < 30) {
-                // Back off slightly sometimes
+            } else if (dist < s.retreatRange) {
                 if (dx > 0) keys[c.left] = true;
                 else keys[c.right] = true;
             }
 
-            // Jump if target is above or to reach platforms
-            if (dy < -40 && ai.isGrounded) {
+            // Jump if target is above
+            if (s.trackVertical && dy < -40 && ai.isGrounded) {
                 keys[c.jump] = true;
             }
             // Jump to avoid spikes
             if (ai.y > canvas.height - 60 && ai.isGrounded) {
                 keys[c.jump] = true;
             }
-            // Random jump to be less predictable
-            if (ai.isGrounded && Math.random() < 0.02) {
+            // Random jump
+            if (ai.isGrounded && Math.random() < s.jumpChance) {
                 keys[c.jump] = true;
             }
 
             // Attack when in range
             if (dist < ai.weapon.range + 30 && Math.abs(dy) < 50) {
-                if (ai.attackCooldown <= 0 && Math.random() < 0.3) {
+                if (ai.attackCooldown <= 0 && Math.random() < s.attackChance) {
                     keys[c.attack] = true;
                 }
-                // Occasional smash for knockback
-                if (ai.smashCooldown <= 0 && Math.random() < 0.05) {
+                if (ai.smashCooldown <= 0 && Math.random() < s.smashChance) {
                     keys[c.smash] = true;
                 }
             }
 
             // Roll away when getting hit
-            if (ai.hitFlash > 0 && ai.rollCooldown <= 0 && ai.isGrounded && Math.random() < 0.3) {
+            if (ai.hitFlash > 0 && ai.rollCooldown <= 0 && ai.isGrounded && Math.random() < s.rollChance) {
                 keys[c.down] = true;
                 if (dx > 0) keys[c.left] = true;
                 else keys[c.right] = true;
+            }
+
+            // Insane: actively dodge projectiles
+            if (aiDifficulty === 'insane' || aiDifficulty === 'hard') {
+                for (const proj of projectiles) {
+                    if (proj.owner === ai) continue;
+                    const pdx = proj.x - aiCX;
+                    const pdy = proj.y - ai.y + ai.height / 2;
+                    if (Math.abs(pdx) < 150 && Math.abs(pdy) < 60) {
+                        // Dodge by jumping or rolling
+                        if (ai.isGrounded && ai.rollCooldown <= 0) {
+                            keys[c.down] = true;
+                            keys[pdx > 0 ? c.left : c.right] = true;
+                        } else if (ai.isGrounded) {
+                            keys[c.jump] = true;
+                        }
+                    }
+                }
             }
         }
 
