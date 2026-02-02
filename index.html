@@ -308,6 +308,98 @@
             -webkit-user-select: none;
             user-select: none;
         }
+
+        /* How to Play screen */
+        #howToPlayScreen {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(26, 26, 46, 0.97);
+            z-index: 220;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 30px 20px;
+            overflow-y: auto;
+        }
+        #howToPlayScreen.visible {
+            display: flex;
+        }
+        #howToPlayScreen h2 {
+            color: #fff;
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+        .htp-section {
+            width: 100%;
+            max-width: 700px;
+            margin-bottom: 18px;
+        }
+        .htp-section h3 {
+            color: #4a9eff;
+            font-size: 20px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 4px;
+        }
+        .htp-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .htp-table th {
+            text-align: left;
+            color: #aaa;
+            padding: 4px 10px;
+            border-bottom: 1px solid #333;
+            font-weight: normal;
+        }
+        .htp-table td {
+            color: #ddd;
+            padding: 5px 10px;
+        }
+        .htp-table tr:nth-child(even) td {
+            background: rgba(255,255,255,0.03);
+        }
+        .htp-weapon-color {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        .htp-moves td:first-child {
+            color: #ffc832;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .htp-back {
+            margin-top: 16px;
+            color: #888;
+            font-size: 18px;
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .how-to-play-btn {
+            width: 280px;
+            padding: 16px 0;
+            font-size: 20px;
+            font-weight: bold;
+            border: 2px solid #888;
+            border-radius: 16px;
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+            text-align: center;
+            background: rgba(255,255,255,0.1);
+            color: #aaa;
+        }
+        .how-to-play-btn:active {
+            transform: scale(0.95);
+        }
     </style>
 </head>
 <body>
@@ -322,6 +414,7 @@
                 <h3 style="color: #ff4a4a;">Player 2</h3>
                 <div>Move: ←/→ | Jump: ↑ | Crouch: ↓ | Roll: ↓+←/→ | Attack: L | Smash: K</div>
             </div>
+            <div style="margin-top:10px;"><span id="desktopHowToPlay" style="color:#4a9eff;cursor:pointer;font-size:14px;">How to Play — Moves & Weapon Stats</span></div>
         </div>
     </div>
 
@@ -336,6 +429,73 @@
             2 Players
             <div class="mode-desc">Play with a friend</div>
         </div>
+        <div class="how-to-play-btn" id="btnHowToPlay">How to Play</div>
+    </div>
+
+    <!-- How to Play Screen -->
+    <div id="howToPlayScreen">
+        <h2>How to Play</h2>
+
+        <div class="htp-section">
+            <h3>Controls</h3>
+            <table class="htp-table">
+                <tr><th></th><th style="color:#4a9eff;">Player 1</th><th style="color:#ff4a4a;">Player 2</th></tr>
+                <tr><td>Move</td><td>A / D</td><td>&larr; / &rarr;</td></tr>
+                <tr><td>Jump</td><td>W</td><td>&uarr;</td></tr>
+                <tr><td>Crouch</td><td>S</td><td>&darr;</td></tr>
+                <tr><td>Attack</td><td>F</td><td>L</td></tr>
+                <tr><td>Smash</td><td>G</td><td>K</td></tr>
+            </table>
+        </div>
+
+        <div class="htp-section">
+            <h3>Moves</h3>
+            <table class="htp-table htp-moves">
+                <tr><td>Attack</td><td>Quick slash &mdash; fast but less knockback</td></tr>
+                <tr><td>Smash</td><td>Overhead slam &mdash; low damage (5) but massive knockback (25). Use to launch enemies into the spike pit!</td></tr>
+                <tr><td>Roll</td><td>Crouch + Left/Right &mdash; dodge through attacks with invincibility frames</td></tr>
+                <tr><td>Crouch</td><td>Hold Down while standing still &mdash; enemies running into you will hop over</td></tr>
+            </table>
+        </div>
+
+        <div class="htp-section">
+            <h3>Weapons</h3>
+            <p style="color:#888; font-size:13px; margin-bottom:8px;">Weapon pickups bounce around the arena. Grab them for a 5-second power-up!</p>
+            <table class="htp-table">
+                <tr><th>Weapon</th><th>Damage</th><th>Knockback</th><th>Range</th><th>Notes</th></tr>
+                <tr>
+                    <td><span class="htp-weapon-color" style="background:#cccccc;"></span>Sword</td>
+                    <td>10</td><td>8</td><td>45</td><td>Default &mdash; balanced all-around</td>
+                </tr>
+                <tr>
+                    <td><span class="htp-weapon-color" style="background:#8B4513;"></span>Hammer</td>
+                    <td>8</td><td>20</td><td>35</td><td>High knockback, short range</td>
+                </tr>
+                <tr>
+                    <td><span class="htp-weapon-color" style="background:#FFD700;"></span>Spear</td>
+                    <td>15</td><td>5</td><td>65</td><td>Best damage &amp; range, low knockback</td>
+                </tr>
+                <tr>
+                    <td><span class="htp-weapon-color" style="background:#CD5C5C;"></span>Axe</td>
+                    <td>20</td><td>12</td><td>40</td><td>Highest damage per hit</td>
+                </tr>
+                <tr>
+                    <td><span class="htp-weapon-color" style="background:#90EE90;"></span>Bow</td>
+                    <td>12</td><td>6</td><td>Ranged</td><td>Shoots arrows &mdash; attack from a distance</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="htp-section">
+            <h3>Tips</h3>
+            <table class="htp-table htp-moves">
+                <tr><td>Spike Pit</td><td>The bottom of the arena deals 30 damage/sec &mdash; smash enemies into it!</td></tr>
+                <tr><td>Platforms</td><td>You can jump through platforms from below but land on them from above</td></tr>
+                <tr><td>Invincibility</td><td>After getting hit you have brief invincibility frames &mdash; use them to reposition</td></tr>
+            </table>
+        </div>
+
+        <div class="htp-back" id="htpBack">&larr; Back</div>
     </div>
 
     <!-- Difficulty Selection Screen -->
@@ -607,6 +767,29 @@
         document.getElementById('btnTwoPlayer').addEventListener('touchstart', onTwoPlayerClick, { passive: false });
         document.getElementById('btnTwoPlayer').addEventListener('click', onTwoPlayerClick);
 
+        // How to Play button
+        function onHowToPlayClick(e) {
+            if (e.type === 'touchstart') e.preventDefault();
+            document.getElementById('howToPlayScreen').classList.add('visible');
+        }
+        document.getElementById('btnHowToPlay').addEventListener('touchstart', onHowToPlayClick, { passive: false });
+        document.getElementById('btnHowToPlay').addEventListener('click', onHowToPlayClick);
+
+        function onHtpBack(e) {
+            if (e.type === 'touchstart') e.preventDefault();
+            document.getElementById('howToPlayScreen').classList.remove('visible');
+        }
+        document.getElementById('htpBack').addEventListener('touchstart', onHtpBack, { passive: false });
+        document.getElementById('htpBack').addEventListener('click', onHtpBack);
+
+        // Desktop "How to Play" link
+        const desktopHtp = document.getElementById('desktopHowToPlay');
+        if (desktopHtp) {
+            desktopHtp.addEventListener('click', () => {
+                document.getElementById('howToPlayScreen').classList.add('visible');
+            });
+        }
+
         // Difficulty buttons
         document.querySelectorAll('.diff-btn').forEach(btn => {
             function handler(e) {
@@ -738,16 +921,55 @@
             resetGame();
         }
 
+        function playAgain() {
+            resetGame();
+            // Re-apply AI weapon for difficulty in 1-player mode
+            if (gameMode === 1) {
+                if (aiDifficulty === 'hard') {
+                    player2.weapon = WEAPONS.spear;
+                    player2.weaponTimer = Infinity;
+                } else if (aiDifficulty === 'insane') {
+                    player2.weapon = WEAPONS.bow;
+                    player2.weaponTimer = Infinity;
+                }
+            }
+        }
+
+        function confirmGameOverSelection() {
+            if (gameOverSelection === 0) {
+                playAgain();
+            } else {
+                returnToMenu();
+            }
+        }
+
+        function handleGameOverClick(x, y) {
+            const b = drawGameOver._buttons;
+            if (!b) return;
+            // Scale click coords to canvas coords
+            const rect = canvas.getBoundingClientRect();
+            const cx = (x - rect.left) * (canvas.width / rect.width);
+            const cy = (y - rect.top) * (canvas.height / rect.height);
+            if (cy >= b.btnY && cy <= b.btnY + b.btnH) {
+                if (cx >= b.leftX && cx <= b.leftX + b.btnW) {
+                    playAgain();
+                } else if (cx >= b.rightX && cx <= b.rightX + b.btnW) {
+                    returnToMenu();
+                }
+            }
+        }
+
         canvas.addEventListener('touchstart', (e) => {
             if (gameState === 'gameover') {
                 e.preventDefault();
-                returnToMenu();
+                const touch = e.touches[0];
+                handleGameOverClick(touch.clientX, touch.clientY);
             }
         }, { passive: false });
 
         canvas.addEventListener('click', (e) => {
             if (gameState === 'gameover') {
-                returnToMenu();
+                handleGameOverClick(e.clientX, e.clientY);
             }
         });
 
@@ -1118,23 +1340,72 @@
                     }
                 }
 
-                // Sword animation - angles based on facing direction
+                // Sword animation - multi-phase swing arcs
                 if (this.isAttacking) {
-                    // Quick swing: sword goes from up to forward
-                    this.targetSwordAngle = this.facingRight ? 0 : Math.PI;
-                } else if (this.isSmashing) {
-                    // Heavy overhead swing
-                    const progress = 1 - (this.smashTimer / 30);
+                    const total = 15;
+                    const progress = 1 - (this.attackTimer / total);
                     if (this.facingRight) {
-                        this.targetSwordAngle = -Math.PI * 0.8 + progress * Math.PI * 1.3;
+                        if (progress < 0.15) {
+                            // Wind-up: pull sword back and up
+                            this.targetSwordAngle = -Math.PI * 0.9;
+                        } else if (progress < 0.5) {
+                            // Swing through: fast arc from back-up to forward-down
+                            const swingT = (progress - 0.15) / 0.35;
+                            this.targetSwordAngle = -Math.PI * 0.9 + swingT * Math.PI * 1.1;
+                        } else {
+                            // Follow-through: hold forward-down position
+                            this.targetSwordAngle = Math.PI * 0.2;
+                        }
                     } else {
-                        this.targetSwordAngle = Math.PI * 0.8 - progress * Math.PI * 1.3;
+                        if (progress < 0.15) {
+                            this.targetSwordAngle = Math.PI + Math.PI * 0.9;
+                        } else if (progress < 0.5) {
+                            const swingT = (progress - 0.15) / 0.35;
+                            this.targetSwordAngle = Math.PI + Math.PI * 0.9 - swingT * Math.PI * 1.1;
+                        } else {
+                            this.targetSwordAngle = Math.PI - Math.PI * 0.2;
+                        }
+                    }
+                } else if (this.isSmashing) {
+                    // Heavy overhead slam: raise high, pause, slam down
+                    const total = 30;
+                    const progress = 1 - (this.smashTimer / total);
+                    if (this.facingRight) {
+                        if (progress < 0.3) {
+                            // Raise overhead
+                            const t = progress / 0.3;
+                            this.targetSwordAngle = -Math.PI / 4 - t * Math.PI * 0.6;
+                        } else if (progress < 0.45) {
+                            // Hold at top (anticipation)
+                            this.targetSwordAngle = -Math.PI * 0.85;
+                        } else if (progress < 0.7) {
+                            // Slam down fast
+                            const t = (progress - 0.45) / 0.25;
+                            this.targetSwordAngle = -Math.PI * 0.85 + t * Math.PI * 1.35;
+                        } else {
+                            // Hold in ground
+                            this.targetSwordAngle = Math.PI * 0.5;
+                        }
+                    } else {
+                        if (progress < 0.3) {
+                            const t = progress / 0.3;
+                            this.targetSwordAngle = Math.PI + Math.PI / 4 + t * Math.PI * 0.6;
+                        } else if (progress < 0.45) {
+                            this.targetSwordAngle = Math.PI + Math.PI * 0.85;
+                        } else if (progress < 0.7) {
+                            const t = (progress - 0.45) / 0.25;
+                            this.targetSwordAngle = Math.PI + Math.PI * 0.85 - t * Math.PI * 1.35;
+                        } else {
+                            this.targetSwordAngle = Math.PI - Math.PI * 0.5;
+                        }
                     }
                 } else {
-                    // Idle: sword held up and ready
+                    // Idle: sword held up and ready at guard position
                     this.targetSwordAngle = this.facingRight ? -Math.PI / 4 : Math.PI + Math.PI / 4;
                 }
-                this.swordAngle += (this.targetSwordAngle - this.swordAngle) * 0.3;
+                // Fast tracking during swings, smooth return to idle
+                const lerpSpeed = (this.isAttacking || this.isSmashing) ? 0.5 : 0.2;
+                this.swordAngle += (this.targetSwordAngle - this.swordAngle) * lerpSpeed;
 
                 // Hit detection
                 if ((this.isAttacking && this.attackTimer > 5) || (this.isSmashing && this.smashTimer > 10 && this.smashTimer < 25)) {
@@ -1155,15 +1426,33 @@
                 }
             }
 
+            getBodyLean() {
+                const dir = this.facingRight ? 1 : -1;
+                if (this.isAttacking) {
+                    const progress = 1 - (this.attackTimer / 15);
+                    if (progress < 0.15) return -dir * 3;
+                    if (progress < 0.5) return dir * 5;
+                    return dir * 2;
+                } else if (this.isSmashing) {
+                    const progress = 1 - (this.smashTimer / 30);
+                    if (progress < 0.3) return -dir * 2;
+                    if (progress < 0.7) return dir * 7;
+                    return dir * 4;
+                }
+                return 0;
+            }
+
             getSwordLine() {
                 const centerX = this.x + this.width / 2;
                 const feetY = this.y;
                 const dir = this.facingRight ? 1 : -1;
                 const crouchOffset = this.isCrouching ? 15 : 0;
+                const bodyLean = this.getBodyLean();
+                const headX = centerX + bodyLean;
                 const headY = feetY - 55 + crouchOffset;
                 const headRadius = 10;
                 const shoulderY = headY + headRadius;
-                const handX = centerX + dir * 22;
+                const handX = headX + dir * 22;
                 const handY = shoulderY + 15 + crouchOffset;
                 const weaponLength = this.weapon.range;
                 return {
@@ -1305,8 +1594,30 @@
                 // Crouch makes character shorter
                 const crouchOffset = this.isCrouching ? 15 : 0;
 
+                // Body lean during attacks
+                let bodyLean = 0;
+                if (this.isAttacking) {
+                    const progress = 1 - (this.attackTimer / 15);
+                    if (progress < 0.15) {
+                        bodyLean = -dir * 3; // lean back during wind-up
+                    } else if (progress < 0.5) {
+                        bodyLean = dir * 5; // lean forward during swing
+                    } else {
+                        bodyLean = dir * 2; // slight forward on follow-through
+                    }
+                } else if (this.isSmashing) {
+                    const progress = 1 - (this.smashTimer / 30);
+                    if (progress < 0.3) {
+                        bodyLean = -dir * 2; // lean back while raising
+                    } else if (progress < 0.7) {
+                        bodyLean = dir * 7; // lean forward on slam
+                    } else {
+                        bodyLean = dir * 4;
+                    }
+                }
+
                 // Head position
-                const headX = centerX;
+                const headX = centerX + bodyLean;
                 const headY = feetY - 55 + crouchOffset;
                 const headRadius = 10;
 
@@ -1315,48 +1626,115 @@
                 ctx.arc(headX, headY, headRadius, 0, Math.PI * 2);
                 ctx.stroke();
 
-                // Body (torso line)
+                // Body (torso line) - with lean
                 const shoulderY = headY + headRadius;
-                const hipY = shoulderY + 20;
+                const hipX = centerX; // hips stay planted
+                const hipY = shoulderY + 20 - Math.abs(bodyLean) * 0.3;
                 ctx.beginPath();
                 ctx.moveTo(headX, shoulderY);
-                ctx.lineTo(headX, hipY);
+                ctx.lineTo(hipX, hipY);
                 ctx.stroke();
 
-                // Legs
-                const walkOffset = Math.sin(Date.now() / 100) * (Math.abs(this.vx) > 0.5 ? 5 : 0);
-                const footY = hipY + 18;
+                // Legs - different poses for different states
+                const legLength = 18;
+                const footY = hipY + legLength;
 
                 if (this.isCrouching) {
-                    // Bent legs for crouch
+                    // Wide bent legs for crouch
+                    const kneeX1 = hipX - 8;
+                    const kneeY = hipY + 10;
+                    const kneeX2 = hipX + 8;
                     ctx.beginPath();
-                    ctx.moveTo(headX, hipY);
-                    ctx.lineTo(headX - 12, footY);
-                    ctx.moveTo(headX, hipY);
-                    ctx.lineTo(headX + 12, footY);
+                    ctx.moveTo(hipX, hipY);
+                    ctx.lineTo(kneeX1, kneeY);
+                    ctx.lineTo(hipX - 12, footY);
+                    ctx.moveTo(hipX, hipY);
+                    ctx.lineTo(kneeX2, kneeY);
+                    ctx.lineTo(hipX + 12, footY);
+                    ctx.stroke();
+                } else if (!this.isGrounded) {
+                    // Airborne: legs trail behind / tuck
+                    if (this.vy < -2) {
+                        // Jumping up: legs push down and back
+                        ctx.beginPath();
+                        ctx.moveTo(hipX, hipY);
+                        ctx.lineTo(hipX - 6, hipY + 10);
+                        ctx.lineTo(hipX - 3, footY + 2);
+                        ctx.moveTo(hipX, hipY);
+                        ctx.lineTo(hipX + 4, hipY + 12);
+                        ctx.lineTo(hipX + 2, footY + 4);
+                        ctx.stroke();
+                    } else {
+                        // Falling: legs dangle slightly forward
+                        ctx.beginPath();
+                        ctx.moveTo(hipX, hipY);
+                        ctx.lineTo(hipX - 4, hipY + 12);
+                        ctx.lineTo(hipX - 6, footY);
+                        ctx.moveTo(hipX, hipY);
+                        ctx.lineTo(hipX + 5, hipY + 10);
+                        ctx.lineTo(hipX + 3, footY - 2);
+                        ctx.stroke();
+                    }
+                } else if (Math.abs(this.vx) > 0.5) {
+                    // Walking: proper stride with knees
+                    const walkCycle = Math.sin(Date.now() / 100);
+                    const stride = walkCycle * 8;
+                    const kneeHeight = 8 + Math.abs(walkCycle) * 3;
+                    // Front leg
+                    ctx.beginPath();
+                    ctx.moveTo(hipX, hipY);
+                    ctx.lineTo(hipX + stride * 0.5, hipY + kneeHeight);
+                    ctx.lineTo(hipX + stride, footY);
+                    ctx.stroke();
+                    // Back leg
+                    ctx.beginPath();
+                    ctx.moveTo(hipX, hipY);
+                    ctx.lineTo(hipX - stride * 0.5, hipY + kneeHeight);
+                    ctx.lineTo(hipX - stride, footY);
                     ctx.stroke();
                 } else {
+                    // Idle: slight shoulder-width stance
                     ctx.beginPath();
-                    ctx.moveTo(headX, hipY);
-                    ctx.lineTo(headX - 8 + walkOffset, footY);
-                    ctx.moveTo(headX, hipY);
-                    ctx.lineTo(headX + 8 - walkOffset, footY);
+                    ctx.moveTo(hipX, hipY);
+                    ctx.lineTo(hipX - 5, hipY + 10);
+                    ctx.lineTo(hipX - 6, footY);
+                    ctx.moveTo(hipX, hipY);
+                    ctx.lineTo(hipX + 5, hipY + 10);
+                    ctx.lineTo(hipX + 6, footY);
                     ctx.stroke();
                 }
 
-                // Arms
+                // Arms - sword arm tracks the weapon angle
                 const handX = headX + dir * 22;
                 const handY = shoulderY + 15 + crouchOffset;
 
-                // Back arm
-                ctx.beginPath();
-                ctx.moveTo(headX, shoulderY);
-                ctx.lineTo(headX - dir * 15, shoulderY + 12);
-                ctx.stroke();
+                // Back arm reacts to attacks
+                if (this.isAttacking || this.isSmashing) {
+                    // Back arm pulls back for balance
+                    const backElbowX = headX - dir * 10;
+                    const backElbowY = shoulderY + 6;
+                    const backHandX = headX - dir * 16;
+                    const backHandY = shoulderY + 14;
+                    ctx.beginPath();
+                    ctx.moveTo(headX, shoulderY);
+                    ctx.lineTo(backElbowX, backElbowY);
+                    ctx.lineTo(backHandX, backHandY);
+                    ctx.stroke();
+                } else {
+                    // Relaxed back arm
+                    ctx.beginPath();
+                    ctx.moveTo(headX, shoulderY);
+                    ctx.lineTo(headX - dir * 8, shoulderY + 8);
+                    ctx.lineTo(headX - dir * 14, shoulderY + 14);
+                    ctx.stroke();
+                }
 
-                // Sword arm
+                // Sword arm - elbow bends to track weapon during swings
+                const elbowX = headX + dir * 12;
+                const elbowY = shoulderY + 8;
                 ctx.beginPath();
                 ctx.moveTo(headX, shoulderY);
+                ctx.lineTo(elbowX, elbowY);
                 ctx.lineTo(handX, handY);
                 ctx.stroke();
 
@@ -1498,6 +1876,8 @@
         // Detect touch device
         const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
 
+        let gameOverSelection = 0; // 0 = Play Again, 1 = Menu
+
         function drawGameOver() {
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1505,13 +1885,44 @@
             ctx.fillStyle = winner === 1 ? '#4a9eff' : '#ff4a4a';
             ctx.font = 'bold 48px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText(`Player ${winner} Wins!`, canvas.width / 2, canvas.height / 2 - 20);
+            ctx.fillText(`Player ${winner} Wins!`, canvas.width / 2, canvas.height / 2 - 40);
 
+            const btnY = canvas.height / 2 + 20;
+            const btnW = 180;
+            const btnH = 50;
+            const gap = 30;
+            const leftX = canvas.width / 2 - btnW - gap / 2;
+            const rightX = canvas.width / 2 + gap / 2;
+
+            // Play Again button
+            ctx.fillStyle = gameOverSelection === 0 ? '#4a9eff' : '#555';
+            ctx.beginPath();
+            ctx.roundRect(leftX, btnY, btnW, btnH, 8);
+            ctx.fill();
             ctx.fillStyle = '#fff';
-            ctx.font = '24px Arial';
-            const restartText = isTouchDevice ? 'Tap screen to restart' : 'Press SPACE to restart';
-            ctx.fillText(restartText, canvas.width / 2, canvas.height / 2 + 30);
+            ctx.font = 'bold 22px Arial';
+            ctx.fillText('Play Again', leftX + btnW / 2, btnY + 33);
+
+            // Menu button
+            ctx.fillStyle = gameOverSelection === 1 ? '#4a9eff' : '#555';
+            ctx.beginPath();
+            ctx.roundRect(rightX, btnY, btnW, btnH, 8);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 22px Arial';
+            ctx.fillText('Menu', rightX + btnW / 2, btnY + 33);
+
+            ctx.fillStyle = '#aaa';
+            ctx.font = '16px Arial';
+            if (isTouchDevice) {
+                ctx.fillText('Tap a button', canvas.width / 2, btnY + btnH + 30);
+            } else {
+                ctx.fillText('← → to select, SPACE to confirm', canvas.width / 2, btnY + btnH + 30);
+            }
             ctx.textAlign = 'left';
+
+            // Store button rects for click/touch detection
+            drawGameOver._buttons = { leftX, rightX, btnY, btnW, btnH };
         }
 
         function resetGame() {
@@ -1789,9 +2200,11 @@
                 if (player1.health <= 0) {
                     gameState = 'gameover';
                     winner = 2;
+                    gameOverSelection = 0;
                 } else if (player2.health <= 0) {
                     gameState = 'gameover';
                     winner = 1;
+                    gameOverSelection = 0;
                 }
             }
 
@@ -1817,8 +2230,19 @@
 
             if (gameState === 'gameover') {
                 drawGameOver();
+                if (keys['ArrowLeft'] || keys['a']) {
+                    gameOverSelection = 0;
+                    keys['ArrowLeft'] = false;
+                    keys['a'] = false;
+                }
+                if (keys['ArrowRight'] || keys['d']) {
+                    gameOverSelection = 1;
+                    keys['ArrowRight'] = false;
+                    keys['d'] = false;
+                }
                 if (keys[' ']) {
-                    returnToMenu();
+                    keys[' '] = false;
+                    confirmGameOverSelection();
                 }
             }
 
