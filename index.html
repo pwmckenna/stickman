@@ -1157,23 +1157,72 @@
                     }
                 }
 
-                // Sword animation - angles based on facing direction
+                // Sword animation - multi-phase swing arcs
                 if (this.isAttacking) {
-                    // Quick swing: sword goes from up to forward
-                    this.targetSwordAngle = this.facingRight ? 0 : Math.PI;
-                } else if (this.isSmashing) {
-                    // Heavy overhead swing
-                    const progress = 1 - (this.smashTimer / 30);
+                    const total = 15;
+                    const progress = 1 - (this.attackTimer / total);
                     if (this.facingRight) {
-                        this.targetSwordAngle = -Math.PI * 0.8 + progress * Math.PI * 1.3;
+                        if (progress < 0.15) {
+                            // Wind-up: pull sword back and up
+                            this.targetSwordAngle = -Math.PI * 0.9;
+                        } else if (progress < 0.5) {
+                            // Swing through: fast arc from back-up to forward-down
+                            const swingT = (progress - 0.15) / 0.35;
+                            this.targetSwordAngle = -Math.PI * 0.9 + swingT * Math.PI * 1.1;
+                        } else {
+                            // Follow-through: hold forward-down position
+                            this.targetSwordAngle = Math.PI * 0.2;
+                        }
                     } else {
-                        this.targetSwordAngle = Math.PI * 0.8 - progress * Math.PI * 1.3;
+                        if (progress < 0.15) {
+                            this.targetSwordAngle = Math.PI + Math.PI * 0.9;
+                        } else if (progress < 0.5) {
+                            const swingT = (progress - 0.15) / 0.35;
+                            this.targetSwordAngle = Math.PI + Math.PI * 0.9 - swingT * Math.PI * 1.1;
+                        } else {
+                            this.targetSwordAngle = Math.PI - Math.PI * 0.2;
+                        }
+                    }
+                } else if (this.isSmashing) {
+                    // Heavy overhead slam: raise high, pause, slam down
+                    const total = 30;
+                    const progress = 1 - (this.smashTimer / total);
+                    if (this.facingRight) {
+                        if (progress < 0.3) {
+                            // Raise overhead
+                            const t = progress / 0.3;
+                            this.targetSwordAngle = -Math.PI / 4 - t * Math.PI * 0.6;
+                        } else if (progress < 0.45) {
+                            // Hold at top (anticipation)
+                            this.targetSwordAngle = -Math.PI * 0.85;
+                        } else if (progress < 0.7) {
+                            // Slam down fast
+                            const t = (progress - 0.45) / 0.25;
+                            this.targetSwordAngle = -Math.PI * 0.85 + t * Math.PI * 1.35;
+                        } else {
+                            // Hold in ground
+                            this.targetSwordAngle = Math.PI * 0.5;
+                        }
+                    } else {
+                        if (progress < 0.3) {
+                            const t = progress / 0.3;
+                            this.targetSwordAngle = Math.PI + Math.PI / 4 + t * Math.PI * 0.6;
+                        } else if (progress < 0.45) {
+                            this.targetSwordAngle = Math.PI + Math.PI * 0.85;
+                        } else if (progress < 0.7) {
+                            const t = (progress - 0.45) / 0.25;
+                            this.targetSwordAngle = Math.PI + Math.PI * 0.85 - t * Math.PI * 1.35;
+                        } else {
+                            this.targetSwordAngle = Math.PI - Math.PI * 0.5;
+                        }
                     }
                 } else {
-                    // Idle: sword held up and ready
+                    // Idle: sword held up and ready at guard position
                     this.targetSwordAngle = this.facingRight ? -Math.PI / 4 : Math.PI + Math.PI / 4;
                 }
-                this.swordAngle += (this.targetSwordAngle - this.swordAngle) * 0.3;
+                // Fast tracking during swings, smooth return to idle
+                const lerpSpeed = (this.isAttacking || this.isSmashing) ? 0.5 : 0.2;
+                this.swordAngle += (this.targetSwordAngle - this.swordAngle) * lerpSpeed;
 
                 // Hit detection
                 if ((this.isAttacking && this.attackTimer > 5) || (this.isSmashing && this.smashTimer > 10 && this.smashTimer < 25)) {
@@ -1194,15 +1243,33 @@
                 }
             }
 
+            getBodyLean() {
+                const dir = this.facingRight ? 1 : -1;
+                if (this.isAttacking) {
+                    const progress = 1 - (this.attackTimer / 15);
+                    if (progress < 0.15) return -dir * 3;
+                    if (progress < 0.5) return dir * 5;
+                    return dir * 2;
+                } else if (this.isSmashing) {
+                    const progress = 1 - (this.smashTimer / 30);
+                    if (progress < 0.3) return -dir * 2;
+                    if (progress < 0.7) return dir * 7;
+                    return dir * 4;
+                }
+                return 0;
+            }
+
             getSwordLine() {
                 const centerX = this.x + this.width / 2;
                 const feetY = this.y;
                 const dir = this.facingRight ? 1 : -1;
                 const crouchOffset = this.isCrouching ? 15 : 0;
+                const bodyLean = this.getBodyLean();
+                const headX = centerX + bodyLean;
                 const headY = feetY - 55 + crouchOffset;
                 const headRadius = 10;
                 const shoulderY = headY + headRadius;
-                const handX = centerX + dir * 22;
+                const handX = headX + dir * 22;
                 const handY = shoulderY + 15 + crouchOffset;
                 const weaponLength = this.weapon.range;
                 return {
@@ -1344,8 +1411,30 @@
                 // Crouch makes character shorter
                 const crouchOffset = this.isCrouching ? 15 : 0;
 
+                // Body lean during attacks
+                let bodyLean = 0;
+                if (this.isAttacking) {
+                    const progress = 1 - (this.attackTimer / 15);
+                    if (progress < 0.15) {
+                        bodyLean = -dir * 3; // lean back during wind-up
+                    } else if (progress < 0.5) {
+                        bodyLean = dir * 5; // lean forward during swing
+                    } else {
+                        bodyLean = dir * 2; // slight forward on follow-through
+                    }
+                } else if (this.isSmashing) {
+                    const progress = 1 - (this.smashTimer / 30);
+                    if (progress < 0.3) {
+                        bodyLean = -dir * 2; // lean back while raising
+                    } else if (progress < 0.7) {
+                        bodyLean = dir * 7; // lean forward on slam
+                    } else {
+                        bodyLean = dir * 4;
+                    }
+                }
+
                 // Head position
-                const headX = centerX;
+                const headX = centerX + bodyLean;
                 const headY = feetY - 55 + crouchOffset;
                 const headRadius = 10;
 
@@ -1354,48 +1443,115 @@
                 ctx.arc(headX, headY, headRadius, 0, Math.PI * 2);
                 ctx.stroke();
 
-                // Body (torso line)
+                // Body (torso line) - with lean
                 const shoulderY = headY + headRadius;
-                const hipY = shoulderY + 20;
+                const hipX = centerX; // hips stay planted
+                const hipY = shoulderY + 20 - Math.abs(bodyLean) * 0.3;
                 ctx.beginPath();
                 ctx.moveTo(headX, shoulderY);
-                ctx.lineTo(headX, hipY);
+                ctx.lineTo(hipX, hipY);
                 ctx.stroke();
 
-                // Legs
-                const walkOffset = Math.sin(Date.now() / 100) * (Math.abs(this.vx) > 0.5 ? 5 : 0);
-                const footY = hipY + 18;
+                // Legs - different poses for different states
+                const legLength = 18;
+                const footY = hipY + legLength;
 
                 if (this.isCrouching) {
-                    // Bent legs for crouch
+                    // Wide bent legs for crouch
+                    const kneeX1 = hipX - 8;
+                    const kneeY = hipY + 10;
+                    const kneeX2 = hipX + 8;
                     ctx.beginPath();
-                    ctx.moveTo(headX, hipY);
-                    ctx.lineTo(headX - 12, footY);
-                    ctx.moveTo(headX, hipY);
-                    ctx.lineTo(headX + 12, footY);
+                    ctx.moveTo(hipX, hipY);
+                    ctx.lineTo(kneeX1, kneeY);
+                    ctx.lineTo(hipX - 12, footY);
+                    ctx.moveTo(hipX, hipY);
+                    ctx.lineTo(kneeX2, kneeY);
+                    ctx.lineTo(hipX + 12, footY);
+                    ctx.stroke();
+                } else if (!this.isGrounded) {
+                    // Airborne: legs trail behind / tuck
+                    if (this.vy < -2) {
+                        // Jumping up: legs push down and back
+                        ctx.beginPath();
+                        ctx.moveTo(hipX, hipY);
+                        ctx.lineTo(hipX - 6, hipY + 10);
+                        ctx.lineTo(hipX - 3, footY + 2);
+                        ctx.moveTo(hipX, hipY);
+                        ctx.lineTo(hipX + 4, hipY + 12);
+                        ctx.lineTo(hipX + 2, footY + 4);
+                        ctx.stroke();
+                    } else {
+                        // Falling: legs dangle slightly forward
+                        ctx.beginPath();
+                        ctx.moveTo(hipX, hipY);
+                        ctx.lineTo(hipX - 4, hipY + 12);
+                        ctx.lineTo(hipX - 6, footY);
+                        ctx.moveTo(hipX, hipY);
+                        ctx.lineTo(hipX + 5, hipY + 10);
+                        ctx.lineTo(hipX + 3, footY - 2);
+                        ctx.stroke();
+                    }
+                } else if (Math.abs(this.vx) > 0.5) {
+                    // Walking: proper stride with knees
+                    const walkCycle = Math.sin(Date.now() / 100);
+                    const stride = walkCycle * 8;
+                    const kneeHeight = 8 + Math.abs(walkCycle) * 3;
+                    // Front leg
+                    ctx.beginPath();
+                    ctx.moveTo(hipX, hipY);
+                    ctx.lineTo(hipX + stride * 0.5, hipY + kneeHeight);
+                    ctx.lineTo(hipX + stride, footY);
+                    ctx.stroke();
+                    // Back leg
+                    ctx.beginPath();
+                    ctx.moveTo(hipX, hipY);
+                    ctx.lineTo(hipX - stride * 0.5, hipY + kneeHeight);
+                    ctx.lineTo(hipX - stride, footY);
                     ctx.stroke();
                 } else {
+                    // Idle: slight shoulder-width stance
                     ctx.beginPath();
-                    ctx.moveTo(headX, hipY);
-                    ctx.lineTo(headX - 8 + walkOffset, footY);
-                    ctx.moveTo(headX, hipY);
-                    ctx.lineTo(headX + 8 - walkOffset, footY);
+                    ctx.moveTo(hipX, hipY);
+                    ctx.lineTo(hipX - 5, hipY + 10);
+                    ctx.lineTo(hipX - 6, footY);
+                    ctx.moveTo(hipX, hipY);
+                    ctx.lineTo(hipX + 5, hipY + 10);
+                    ctx.lineTo(hipX + 6, footY);
                     ctx.stroke();
                 }
 
-                // Arms
+                // Arms - sword arm tracks the weapon angle
                 const handX = headX + dir * 22;
                 const handY = shoulderY + 15 + crouchOffset;
 
-                // Back arm
-                ctx.beginPath();
-                ctx.moveTo(headX, shoulderY);
-                ctx.lineTo(headX - dir * 15, shoulderY + 12);
-                ctx.stroke();
+                // Back arm reacts to attacks
+                if (this.isAttacking || this.isSmashing) {
+                    // Back arm pulls back for balance
+                    const backElbowX = headX - dir * 10;
+                    const backElbowY = shoulderY + 6;
+                    const backHandX = headX - dir * 16;
+                    const backHandY = shoulderY + 14;
+                    ctx.beginPath();
+                    ctx.moveTo(headX, shoulderY);
+                    ctx.lineTo(backElbowX, backElbowY);
+                    ctx.lineTo(backHandX, backHandY);
+                    ctx.stroke();
+                } else {
+                    // Relaxed back arm
+                    ctx.beginPath();
+                    ctx.moveTo(headX, shoulderY);
+                    ctx.lineTo(headX - dir * 8, shoulderY + 8);
+                    ctx.lineTo(headX - dir * 14, shoulderY + 14);
+                    ctx.stroke();
+                }
 
-                // Sword arm
+                // Sword arm - elbow bends to track weapon during swings
+                const elbowX = headX + dir * 12;
+                const elbowY = shoulderY + 8;
                 ctx.beginPath();
                 ctx.moveTo(headX, shoulderY);
+                ctx.lineTo(elbowX, elbowY);
                 ctx.lineTo(handX, handY);
                 ctx.stroke();
 
