@@ -308,6 +308,98 @@
             -webkit-user-select: none;
             user-select: none;
         }
+
+        /* How to Play screen */
+        #howToPlayScreen {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(26, 26, 46, 0.97);
+            z-index: 220;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 30px 20px;
+            overflow-y: auto;
+        }
+        #howToPlayScreen.visible {
+            display: flex;
+        }
+        #howToPlayScreen h2 {
+            color: #fff;
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+        .htp-section {
+            width: 100%;
+            max-width: 700px;
+            margin-bottom: 18px;
+        }
+        .htp-section h3 {
+            color: #4a9eff;
+            font-size: 20px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 4px;
+        }
+        .htp-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .htp-table th {
+            text-align: left;
+            color: #aaa;
+            padding: 4px 10px;
+            border-bottom: 1px solid #333;
+            font-weight: normal;
+        }
+        .htp-table td {
+            color: #ddd;
+            padding: 5px 10px;
+        }
+        .htp-table tr:nth-child(even) td {
+            background: rgba(255,255,255,0.03);
+        }
+        .htp-weapon-color {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        .htp-moves td:first-child {
+            color: #ffc832;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .htp-back {
+            margin-top: 16px;
+            color: #888;
+            font-size: 18px;
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .how-to-play-btn {
+            width: 280px;
+            padding: 16px 0;
+            font-size: 20px;
+            font-weight: bold;
+            border: 2px solid #888;
+            border-radius: 16px;
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+            text-align: center;
+            background: rgba(255,255,255,0.1);
+            color: #aaa;
+        }
+        .how-to-play-btn:active {
+            transform: scale(0.95);
+        }
     </style>
 </head>
 <body>
@@ -322,6 +414,7 @@
                 <h3 style="color: #ff4a4a;">Player 2</h3>
                 <div>Move: ←/→ | Jump: ↑ | Crouch: ↓ | Roll: ↓+←/→ | Attack: L | Smash: K</div>
             </div>
+            <div style="margin-top:10px;"><span id="desktopHowToPlay" style="color:#4a9eff;cursor:pointer;font-size:14px;">How to Play — Moves & Weapon Stats</span></div>
         </div>
     </div>
 
@@ -336,6 +429,73 @@
             2 Players
             <div class="mode-desc">Play with a friend</div>
         </div>
+        <div class="how-to-play-btn" id="btnHowToPlay">How to Play</div>
+    </div>
+
+    <!-- How to Play Screen -->
+    <div id="howToPlayScreen">
+        <h2>How to Play</h2>
+
+        <div class="htp-section">
+            <h3>Controls</h3>
+            <table class="htp-table">
+                <tr><th></th><th style="color:#4a9eff;">Player 1</th><th style="color:#ff4a4a;">Player 2</th></tr>
+                <tr><td>Move</td><td>A / D</td><td>&larr; / &rarr;</td></tr>
+                <tr><td>Jump</td><td>W</td><td>&uarr;</td></tr>
+                <tr><td>Crouch</td><td>S</td><td>&darr;</td></tr>
+                <tr><td>Attack</td><td>F</td><td>L</td></tr>
+                <tr><td>Smash</td><td>G</td><td>K</td></tr>
+            </table>
+        </div>
+
+        <div class="htp-section">
+            <h3>Moves</h3>
+            <table class="htp-table htp-moves">
+                <tr><td>Attack</td><td>Quick slash &mdash; fast but less knockback</td></tr>
+                <tr><td>Smash</td><td>Overhead slam &mdash; low damage (5) but massive knockback (25). Use to launch enemies into the spike pit!</td></tr>
+                <tr><td>Roll</td><td>Crouch + Left/Right &mdash; dodge through attacks with invincibility frames</td></tr>
+                <tr><td>Crouch</td><td>Hold Down while standing still &mdash; enemies running into you will hop over</td></tr>
+            </table>
+        </div>
+
+        <div class="htp-section">
+            <h3>Weapons</h3>
+            <p style="color:#888; font-size:13px; margin-bottom:8px;">Weapon pickups bounce around the arena. Grab them for a 5-second power-up!</p>
+            <table class="htp-table">
+                <tr><th>Weapon</th><th>Damage</th><th>Knockback</th><th>Range</th><th>Notes</th></tr>
+                <tr>
+                    <td><span class="htp-weapon-color" style="background:#cccccc;"></span>Sword</td>
+                    <td>10</td><td>8</td><td>45</td><td>Default &mdash; balanced all-around</td>
+                </tr>
+                <tr>
+                    <td><span class="htp-weapon-color" style="background:#8B4513;"></span>Hammer</td>
+                    <td>8</td><td>20</td><td>35</td><td>High knockback, short range</td>
+                </tr>
+                <tr>
+                    <td><span class="htp-weapon-color" style="background:#FFD700;"></span>Spear</td>
+                    <td>15</td><td>5</td><td>65</td><td>Best damage &amp; range, low knockback</td>
+                </tr>
+                <tr>
+                    <td><span class="htp-weapon-color" style="background:#CD5C5C;"></span>Axe</td>
+                    <td>20</td><td>12</td><td>40</td><td>Highest damage per hit</td>
+                </tr>
+                <tr>
+                    <td><span class="htp-weapon-color" style="background:#90EE90;"></span>Bow</td>
+                    <td>12</td><td>6</td><td>Ranged</td><td>Shoots arrows &mdash; attack from a distance</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="htp-section">
+            <h3>Tips</h3>
+            <table class="htp-table htp-moves">
+                <tr><td>Spike Pit</td><td>The bottom of the arena deals 30 damage/sec &mdash; smash enemies into it!</td></tr>
+                <tr><td>Platforms</td><td>You can jump through platforms from below but land on them from above</td></tr>
+                <tr><td>Invincibility</td><td>After getting hit you have brief invincibility frames &mdash; use them to reposition</td></tr>
+            </table>
+        </div>
+
+        <div class="htp-back" id="htpBack">&larr; Back</div>
     </div>
 
     <!-- Difficulty Selection Screen -->
@@ -606,6 +766,29 @@
         }
         document.getElementById('btnTwoPlayer').addEventListener('touchstart', onTwoPlayerClick, { passive: false });
         document.getElementById('btnTwoPlayer').addEventListener('click', onTwoPlayerClick);
+
+        // How to Play button
+        function onHowToPlayClick(e) {
+            if (e.type === 'touchstart') e.preventDefault();
+            document.getElementById('howToPlayScreen').classList.add('visible');
+        }
+        document.getElementById('btnHowToPlay').addEventListener('touchstart', onHowToPlayClick, { passive: false });
+        document.getElementById('btnHowToPlay').addEventListener('click', onHowToPlayClick);
+
+        function onHtpBack(e) {
+            if (e.type === 'touchstart') e.preventDefault();
+            document.getElementById('howToPlayScreen').classList.remove('visible');
+        }
+        document.getElementById('htpBack').addEventListener('touchstart', onHtpBack, { passive: false });
+        document.getElementById('htpBack').addEventListener('click', onHtpBack);
+
+        // Desktop "How to Play" link
+        const desktopHtp = document.getElementById('desktopHowToPlay');
+        if (desktopHtp) {
+            desktopHtp.addEventListener('click', () => {
+                document.getElementById('howToPlayScreen').classList.add('visible');
+            });
+        }
 
         // Difficulty buttons
         document.querySelectorAll('.diff-btn').forEach(btn => {
