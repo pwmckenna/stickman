@@ -1176,6 +1176,7 @@
                 this.rollCooldown = 0;
                 this.rollDirection = 1;
                 this.isCrouching = false;
+                this.crouchTimer = 0;
                 this.weapon = WEAPONS.sword;
                 this.weaponTimer = 0;
             }
@@ -1221,9 +1222,22 @@
                         } else {
                             // Just crouch (down without direction)
                             this.isCrouching = true;
+                            this.crouchTimer++;
+                            // Fall through platform after 5 seconds (300 frames)
+                            if (this.crouchTimer >= 300 && this.isGrounded) {
+                                this.y += 10;
+                                this.vy = 2;
+                                this.isGrounded = false;
+                                this.isCrouching = false;
+                                this.crouchTimer = 0;
+                                this.health -= 1;
+                                this.hitFlash = 10;
+                                screenShake = 5;
+                            }
                         }
                     } else {
                         this.isCrouching = false;
+                        this.crouchTimer = 0;
                     }
 
                     // Jump
